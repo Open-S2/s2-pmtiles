@@ -1,3 +1,4 @@
+import DirCache from './cache';
 import { open } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import {
@@ -23,51 +24,6 @@ import type { Face, Metadata, S2Metadata } from './metadata';
 // Promisify the zlib methods
 const gunzipAsync = promisify(gunzip);
 const brotliDecompressAsync = promisify(brotliDecompress);
-
-/**
- * A cache of directories.
- * The key is the offset in the data and the value is the directory entries.
- */
-export class DirCache<K = number, V = Entry[]> extends Map<K, V> {
-  order: K[] = [];
-  /**
-   * @param maxSize - the max size of the cache before dumping old data
-   */
-  constructor(private maxSize: number) {
-    super();
-  }
-
-  /**
-   * @param key - the offset position in the data
-   * @param dir - the directory entries
-   * @returns this
-   */
-  set(key: K, dir: V): this {
-    // place in front the new
-    this.order.unshift(key);
-    while (this.order.length > this.maxSize) this.delete(this.order.pop() as K);
-    return super.set(key, dir);
-  }
-
-  /**
-   * @param key - the offset position in the data
-   * @returns - the directories entries if found
-   */
-  get(key: K): V | undefined {
-    // update the place in the array and than get
-    this.order.splice(this.order.indexOf(key), 1);
-    this.order.unshift(key);
-    return super.get(key);
-  }
-
-  /**
-   * @param key - the offset position in the data
-   * @returns - true if found
-   */
-  delete(key: K): boolean {
-    return super.delete(key);
-  }
-}
 
 /** The File reader is to be used by bun/node/deno on the local filesystem. */
 export class PMTilesReader {
