@@ -17,7 +17,12 @@
   },
   "main": "dist/index.js",
   "exports": {
-    ".": "./dist/index.js"
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "browser": "./dist/browser.js",
+      "types": "./dist/index.d.ts"
+    }
   },
   "scripts": {
     "lint+build+test+docs+test:cov": "bun run lint && bun run build && bun run test && bun run docs && bun run test:cov",

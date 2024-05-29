@@ -1,4 +1,4 @@
-import { hash } from 'bun';
+import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import {
   Compression,
@@ -26,7 +26,7 @@ const brotliCompressAsync = promisify(brotliCompress);
 export class PMTilesWriter {
   #tileEntries: Entry[] = [];
   #s2tileEntries: S2Entries = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [] };
-  #hashToOffset = new Map<number | bigint, number>();
+  #hashToOffset = new Map<string, number>();
   #offset = 0;
   #addressedTiles = 0;
   #clustered = true;
@@ -79,7 +79,7 @@ export class PMTilesWriter {
       this.#clustered = false;
     }
 
-    const hsh = hash(data);
+    const hsh = hashUint8Array(data);
     let offset = this.#hashToOffset.get(hsh);
     if (offset !== undefined) {
       const last = tileEntries.at(-1) as Entry;
@@ -415,4 +415,15 @@ function concatUint8Arrays(a: Uint8Array, b: Uint8Array): Uint8Array {
   result.set(a, 0);
   result.set(b, a.length);
   return result;
+}
+
+/**
+ * @param data - the data to hash
+ * @param algorithm - the hashing algorithm
+ * @returns - the hashed string
+ */
+function hashUint8Array(data: Uint8Array, algorithm: string = 'sha256'): string {
+  const hash = createHash(algorithm);
+  hash.update(Buffer.from(data));
+  return hash.digest('hex'); // Change 'hex' to 'base64' or other formats if needed
 }
