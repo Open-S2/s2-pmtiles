@@ -1,6 +1,6 @@
 {
   "name": "s2-pmtiles",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "This library reads/writes PMTiles V3.0 as well as S2PMTiles V1.0",
   "keywords": [
     "PMTiles",
@@ -24,7 +24,11 @@
       "types": "./dist/index.d.ts"
     },
     "./dist/*": "./dist/*",
-    "./browser": "./dist/browser.js"
+    "./browser": {
+      "require": "./dist/browser.js",
+      "import": "./dist/browser.js",
+      "types": "./dist/browser.d.ts"
+    }
   },
   "scripts": {
     "lint+build+test+docs+test:cov": "bun run lint && bun run build && bun run test && bun run docs && bun run test:cov",
