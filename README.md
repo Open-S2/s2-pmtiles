@@ -5,8 +5,8 @@
 [npm-url]: https://npmjs.org/package/s2-pmtiles
 [crate-image]: https://img.shields.io/crates/v/s2-pmtiles.svg?logo=rust&logoColor=white
 [crate-url]: https://crates.io/crates/s2-pmtiles
-[bundle-image]: https://img.shields.io/bundlejs/size/s2-pmtiles
-[bundle-url]: https://bundlejs.com/?q=s2-pmtiles
+[bundle-image]: https://deno.bundlejs.com/badge?q=s2-pmtiles/browser&treeshake=[{+default+}]
+[bundle-url]: https://bundlejs.com/?q=s2-pmtiles%2Fbrowser&treeshake=%5B%7B+default+%7D%5D
 [downloads-image]: https://img.shields.io/npm/dm/s2-pmtiles.svg
 [downloads-url]: https://www.npmjs.com/package/s2-pmtiles
 [docs-ts-image]: https://img.shields.io/badge/docs-typescript-yellow.svg
