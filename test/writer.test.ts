@@ -36,7 +36,7 @@ describe('File Writer', async () => {
       jsonMetadataLength: 17,
       jsonMetadataOffset: 132,
       leafDirectoryLength: 0,
-      leafDirectoryOffset: 149,
+      leafDirectoryOffset: 98_315,
       maxZoom: 0,
       minZoom: 0,
       numAddressedTiles: 1,

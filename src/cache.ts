@@ -1,4 +1,4 @@
-import { Entry } from './pmtiles';
+import type { Entry } from './pmtiles';
 
 /**
  * A cache of directories.
@@ -9,7 +9,7 @@ export default class DirCache<K = number, V = Entry[]> extends Map<K, V> {
   /**
    * @param maxSize - the max size of the cache before dumping old data
    */
-  constructor(private maxSize: number) {
+  constructor(private readonly maxSize: number) {
     super();
   }
 

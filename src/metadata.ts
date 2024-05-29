@@ -5,26 +5,25 @@ export type DrawType = 1 | 2 | 3 | 4; // 1: points, 2: lines, 3: poly
 export type Face = 0 | 1 | 2 | 3 | 4 | 5;
 
 /** OpenS2 layer fields */
-export interface LayerFields {
-  [layerFieldKey: string]: Array<'Number' | 'String' | 'Boolean'>;
-}
+export type LayerFields = Record<string, Array<'Number' | 'String' | 'Boolean'>>;
 
 /** OpenS2 layer metadata */
-export interface LayerMetaData {
-  [layer: string]: {
+export type LayerMetaData = Record<
+  string,
+  {
     // layer
     description?: string;
     minzoom: number;
     maxzoom: number;
     drawTypes: DrawType[];
     fields: LayerFields; // max fields size of 10
-  };
-}
+  }
+>;
 
 /** Mapbox Vector Tile layer metadata */
 export interface VectorLayerMetaData {
   id: string;
-  fields: { [field: string]: string }; // max fields size of 10; value is the description
+  fields: Record<string, string>; // max fields size of 10; value is the description
   description?: string;
   minzoom?: number;
   maxzoom?: number;
@@ -102,15 +101,15 @@ export interface S2Metadata extends MetadataBase {
   faces: Face[];
   type: 'vector' | 'raster' | 'rasterDEM' | 'rasterData' | 'json' | 'buffer';
   encoding: 'gz' | 'br' | 'none';
-  attributions: { [name: string]: string }; // { ['human readable string']: 'href' }
+  attributions: Record<string, string>; // { ['human readable string']: 'href' }
   facesbounds: {
     // facesbounds[face][zoom] = [...]
-    0: { [zoom: number]: TileBounds };
-    1: { [zoom: number]: TileBounds };
-    2: { [zoom: number]: TileBounds };
-    3: { [zoom: number]: TileBounds };
-    4: { [zoom: number]: TileBounds };
-    5: { [zoom: number]: TileBounds };
+    0: Record<number, TileBounds>;
+    1: Record<number, TileBounds>;
+    2: Record<number, TileBounds>;
+    3: Record<number, TileBounds>;
+    4: Record<number, TileBounds>;
+    5: Record<number, TileBounds>;
   };
   layers: LayerMetaData;
   tilestats?: TileStatsMetadata;

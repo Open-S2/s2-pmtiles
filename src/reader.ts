@@ -1,25 +1,13 @@
 import DirCache from './cache';
 import { open } from 'node:fs/promises';
 import { promisify } from 'node:util';
-import {
-  Compression,
-  Entry,
-  Header,
-  bytesToHeader,
-  deserializeDir,
-  findTile,
-  zxyToTileID,
-} from './pmtiles';
-import {
-  S2Entries,
-  S2Header,
-  S2_HEADER_SIZE_BYTES,
-  S2_ROOT_SIZE,
-  s2BytesToHeader,
-} from './s2pmtiles';
+import { Compression, bytesToHeader, deserializeDir, findTile, zxyToTileID } from './pmtiles';
+import { S2_HEADER_SIZE_BYTES, S2_ROOT_SIZE, s2BytesToHeader } from './s2pmtiles';
 import { brotliDecompress, gunzip } from 'node:zlib';
 
+import type { Entry, Header } from './pmtiles';
 import type { Face, Metadata, S2Metadata } from './metadata';
+import type { S2Entries, S2Header } from './s2pmtiles';
 
 // Promisify the zlib methods
 const gunzipAsync = promisify(gunzip);
@@ -33,6 +21,7 @@ export class PMTilesReader {
   #rootDirS2: S2Entries = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [] };
   #metadata!: Metadata | S2Metadata;
   #dirCache: DirCache;
+  #decoder = new TextDecoder('utf-8');
 
   /**
    * Given an input path, read in the header and root directory
@@ -66,7 +55,7 @@ export class PMTilesReader {
       header.jsonMetadataOffset + header.jsonMetadataLength,
     );
     this.#metadata = JSON.parse(
-      arrayBufferToString(await decompress(jsonMetadata, header.internalCompression)),
+      this.#arrayBufferToString(await decompress(jsonMetadata, header.internalCompression)),
     );
 
     // root directory data
@@ -211,6 +200,14 @@ export class PMTilesReader {
 
     return new Uint8Array(buffer.buffer, buffer.byteOffset, bytesRead);
   }
+
+  /**
+   * @param buffer - the buffer to convert
+   * @returns - the string result
+   */
+  #arrayBufferToString(buffer: Uint8Array): string {
+    return this.#decoder.decode(buffer);
+  }
 }
 
 /**
@@ -230,13 +227,4 @@ async function decompress(data: Uint8Array, compression: Compression): Promise<U
     default:
       return data;
   }
-}
-
-/**
- * @param buffer - the buffer to convert
- * @returns - the string result
- */
-function arrayBufferToString(buffer: Uint8Array): string {
-  const decoder = new TextDecoder('utf-8');
-  return decoder.decode(buffer);
 }

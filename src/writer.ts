@@ -2,22 +2,20 @@ import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import {
   Compression,
-  Entry,
   HEADER_SIZE_BYTES,
-  Header,
   ROOT_SIZE,
-  TileType,
   headerToBytes,
   serializeDir,
   tileIDToZxy,
   zxyToTileID,
 } from './pmtiles';
-import { S2Entries, S2Header, S2_ROOT_SIZE, s2HeaderToBytes } from './s2pmtiles';
+import { S2_ROOT_SIZE, s2HeaderToBytes } from './s2pmtiles';
 import { appendFile, open } from 'node:fs/promises';
 import { brotliCompress, gzip } from 'zlib';
 
-import type { Compressor } from './pmtiles';
+import type { Compressor, Entry, Header, TileType } from './pmtiles';
 import type { Face, Metadata, S2Metadata } from './metadata';
+import type { S2Entries, S2Header } from './s2pmtiles';
 
 const gzipAsync = promisify(gzip);
 const brotliCompressAsync = promisify(brotliCompress);
@@ -135,8 +133,10 @@ export class PMTilesWriter {
     const rootDirectoryLength = rootBytes.byteLength;
     const jsonMetadataOffset = rootDirectoryOffset + rootDirectoryLength;
     const jsonMetadataLength = metaCompressed.byteLength;
-    const leafDirectoryOffset = jsonMetadataOffset + jsonMetadataLength;
+    const leafDirectoryOffset = this.#offset + S2_ROOT_SIZE;
     const leafDirectoryLength = leavesBytes.byteLength;
+    this.#offset += leavesBytes.byteLength;
+    appendFile(this.file, leavesBytes);
     // to make writing faster
     const minZoom = tileIDToZxy((tileEntries.at(0) as Entry).tileID)[0];
     const maxZoom = tileIDToZxy((tileEntries.at(-1) as Entry).tileID)[0];
@@ -169,7 +169,6 @@ export class PMTilesWriter {
     await fileHandle.write(serialzedHeader, 0, serialzedHeader.byteLength, 0);
     await fileHandle.write(rootBytes, 0, rootBytes.byteLength, rootDirectoryOffset);
     await fileHandle.write(metaCompressed, 0, metaCompressed.byteLength, jsonMetadataOffset);
-    await fileHandle.write(leavesBytes, 0, leavesBytes.byteLength, leafDirectoryOffset);
     await fileHandle.close();
   }
 
@@ -238,20 +237,34 @@ export class PMTilesWriter {
     const rootDirectoryLength4 = rootBytes4.byteLength;
     const rootDirectoryOffset5 = rootDirectoryOffset4 + rootDirectoryLength4;
     const rootDirectoryLength5 = rootBytes5.byteLength;
+    // metadata
     const jsonMetadataOffset = rootDirectoryOffset5 + rootDirectoryLength5;
     const jsonMetadataLength = metaCompressed.byteLength;
-    const leafDirectoryOffset = jsonMetadataOffset + jsonMetadataLength;
+    // leafs
+    const leafDirectoryOffset = this.#offset + S2_ROOT_SIZE;
     const leafDirectoryLength = leavesBytes.byteLength;
-    const leafDirectoryOffset1 = leafDirectoryOffset + leafDirectoryLength;
+    this.#offset += leafDirectoryLength;
+    appendFile(this.file, leavesBytes);
+    const leafDirectoryOffset1 = this.#offset + S2_ROOT_SIZE;
     const leafDirectoryLength1 = leavesBytes1.byteLength;
-    const leafDirectoryOffset2 = leafDirectoryOffset1 + leafDirectoryLength1;
+    this.#offset += leafDirectoryLength1;
+    appendFile(this.file, leavesBytes1);
+    const leafDirectoryOffset2 = this.#offset + S2_ROOT_SIZE;
     const leafDirectoryLength2 = leavesBytes2.byteLength;
-    const leafDirectoryOffset3 = leafDirectoryOffset2 + leafDirectoryLength2;
+    this.#offset += leafDirectoryLength2;
+    appendFile(this.file, leavesBytes2);
+    const leafDirectoryOffset3 = this.#offset + S2_ROOT_SIZE;
     const leafDirectoryLength3 = leavesBytes3.byteLength;
-    const leafDirectoryOffset4 = leafDirectoryOffset3 + leafDirectoryLength3;
+    this.#offset += leafDirectoryLength3;
+    appendFile(this.file, leavesBytes3);
+    const leafDirectoryOffset4 = this.#offset + S2_ROOT_SIZE;
     const leafDirectoryLength4 = leavesBytes4.byteLength;
-    const leafDirectoryOffset5 = leafDirectoryOffset4 + leafDirectoryLength4;
+    this.#offset += leafDirectoryLength4;
+    appendFile(this.file, leavesBytes4);
+    const leafDirectoryOffset5 = this.#offset + S2_ROOT_SIZE;
     const leafDirectoryLength5 = leavesBytes5.byteLength;
+    this.#offset += leafDirectoryLength5;
+    appendFile(this.file, leavesBytes5);
     // to make writing faster
     const minZoom = tileIDToZxy((tileEntries.at(0) as Entry).tileID)[0];
     const maxZoom = tileIDToZxy((tileEntries.at(-1) as Entry).tileID)[0];
@@ -310,11 +323,6 @@ export class PMTilesWriter {
     await fileHandle.write(rootBytes5, 0, rootBytes5.byteLength, rootDirectoryOffset5);
     await fileHandle.write(metaCompressed, 0, metaCompressed.byteLength, jsonMetadataOffset);
     await fileHandle.write(leavesBytes, 0, leavesBytes.byteLength, leafDirectoryOffset);
-    await fileHandle.write(leavesBytes1, 0, leavesBytes1.byteLength, leafDirectoryOffset1);
-    await fileHandle.write(leavesBytes2, 0, leavesBytes2.byteLength, leafDirectoryOffset2);
-    await fileHandle.write(leavesBytes3, 0, leavesBytes3.byteLength, leafDirectoryOffset3);
-    await fileHandle.write(leavesBytes4, 0, leavesBytes4.byteLength, leafDirectoryOffset4);
-    await fileHandle.write(leavesBytes5, 0, leavesBytes5.byteLength, leafDirectoryOffset5);
     await fileHandle.close();
   }
 

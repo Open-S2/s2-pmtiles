@@ -1,22 +1,26 @@
 import DirCache from './cache';
+import { decompressSync } from 'fflate';
 import {
   Compression,
-  Entry,
-  Header,
+  type Entry,
+  type Header,
   bytesToHeader,
   deserializeDir,
   findTile,
   zxyToTileID,
 } from './pmtiles';
 import {
-  S2Entries,
-  S2Header,
+  type S2Entries,
+  type S2Header,
   S2_HEADER_SIZE_BYTES,
   S2_ROOT_SIZE,
   s2BytesToHeader,
 } from './s2pmtiles';
 
 import type { Face, Metadata, S2Metadata } from './metadata';
+
+// export DirCache for browsers to use (reduce code duplication)
+export { default as DirCache } from './cache';
 
 /** The File reader is to be used by bun/node/deno on the local filesystem. */
 export default class S2PMTilesReader {
@@ -25,7 +29,8 @@ export default class S2PMTilesReader {
   #rootDir: Entry[] = [];
   #rootDirS2: S2Entries = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [] };
   #metadata!: Metadata | S2Metadata;
-  #dirCache: DirCache;
+  readonly #dirCache: DirCache;
+  readonly #decoder = new TextDecoder('utf-8');
 
   /**
    * Given an input path, read in the header and root directory
@@ -61,7 +66,7 @@ export default class S2PMTilesReader {
       header.jsonMetadataOffset + header.jsonMetadataLength,
     );
     this.#metadata = JSON.parse(
-      arrayBufferToString(await decompress(jsonMetadata, header.internalCompression)),
+      this.#arrayBufferToString(await decompress(jsonMetadata, header.internalCompression)),
     );
 
     // root directory data
@@ -71,7 +76,7 @@ export default class S2PMTilesReader {
     );
     this.#rootDir = deserializeDir(await decompress(rootDirData, header.internalCompression));
 
-    if (isS2) this.#getS2Metadata(data, header as S2Header);
+    if (isS2) await this.#getS2Metadata(data, header as S2Header);
 
     return header;
   }
@@ -104,7 +109,8 @@ export default class S2PMTilesReader {
   }
 
   /** @returns - the metadata of the archive */
-  getMetadata(): Metadata | S2Metadata {
+  async getMetadata(): Promise<Metadata | S2Metadata> {
+    await this.#getMetadata(); // ensure loaded first
     return this.#metadata;
   }
 
@@ -126,7 +132,7 @@ export default class S2PMTilesReader {
    * @returns - the bytes of the tile at the given (z, x, y) coordinates, or undefined if the tile does not exist in the archive.
    */
   async getTile(zoom: number, x: number, y: number): Promise<Uint8Array | undefined> {
-    return this.#getTile(-1, zoom, x, y);
+    return await this.#getTile(-1, zoom, x, y);
   }
 
   /**
@@ -180,7 +186,7 @@ export default class S2PMTilesReader {
     if (offset === rootDirectoryOffset) return dir;
     // check cache
     const cache = this.#dirCache.get(offset);
-    if (cache) return cache;
+    if (cache !== undefined) return cache;
     // get from archive
     const resp = await this.#getRange(offset, length);
     const data = await decompress(resp, internalCompression);
@@ -202,8 +208,16 @@ export default class S2PMTilesReader {
     const fetchReq = this.rangeRequests
       ? fetch(this.path, { headers: { Range: `bytes=${offset}-${offset + length - 1}` } })
       : fetch(`${this.path}&bytes=${bytes}`);
-    const res = await fetchReq.then((res) => res.arrayBuffer());
+    const res = await fetchReq.then(async (res) => await res.arrayBuffer());
     return new Uint8Array(res, 0, res.byteLength);
+  }
+
+  /**
+   * @param buffer - the buffer to convert
+   * @returns - the string result
+   */
+  #arrayBufferToString(buffer: Uint8Array): string {
+    return this.#decoder.decode(buffer);
   }
 }
 
@@ -215,7 +229,7 @@ export default class S2PMTilesReader {
 async function decompress(data: Uint8Array, compression: Compression): Promise<Uint8Array> {
   switch (compression) {
     case Compression.Gzip:
-      throw new Error('gzip decompression not implemented');
+      return decompressSync(data);
     case Compression.Brotli:
       throw new Error('Brotli decompression not implemented');
     case Compression.Zstd:
@@ -224,13 +238,4 @@ async function decompress(data: Uint8Array, compression: Compression): Promise<U
     default:
       return data;
   }
-}
-
-/**
- * @param buffer - the buffer to convert
- * @returns - the string result
- */
-function arrayBufferToString(buffer: Uint8Array): string {
-  const decoder = new TextDecoder('utf-8');
-  return decoder.decode(buffer);
 }

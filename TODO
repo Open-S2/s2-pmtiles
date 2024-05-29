@@ -1,6 +1,8 @@
 # TODO
 
 [ ] fix readme
+[ ] fix leaves
+[ ] finish docs to 100%
 
 [ ] write util tools `convertMBTiles` (including the metadata) and `readTilesIterator`
 

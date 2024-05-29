@@ -26,6 +26,8 @@ A Modified TypeScript implementation of the [PMTiles](https://github.com/protoma
 
 [s2-pmtiles-spec](/s2-pmtiles-spec/1.0.0/README.md)
 
+For now this spec supports deflating metadata/directories inside the browser, but it will be removed in the future.
+
 ## Install
 
 ```bash
