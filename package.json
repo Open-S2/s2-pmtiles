@@ -22,7 +22,9 @@
       "import": "./dist/index.js",
       "browser": "./dist/browser.js",
       "types": "./dist/index.d.ts"
-    }
+    },
+    "./dist/*": "./dist/*",
+    "./browser": "./dist/browser.js"
   },
   "scripts": {
     "lint+build+test+docs+test:cov": "bun run lint && bun run build && bun run test && bun run docs && bun run test:cov",
