@@ -1,0 +1,8 @@
+# TODO
+
+[ ] fix readme
+
+[ ] write util tools `convertMBTiles` (including the metadata) and `readTilesIterator`
+
+[ ] > 90% coverage for all tests
+[ ] s2-pmtiles-spec

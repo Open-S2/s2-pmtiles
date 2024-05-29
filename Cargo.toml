@@ -1,0 +1,43 @@
+[package]
+name = "s2-pmtiles"
+version = "0.1.0"
+edition = "2021"
+authors = ["Craig O'Connor <oconnorct1@gmail.com>"]
+description = "This library reads/writes The S2 PMTiles 1.0 Specification"
+documentation = "https://docs.rs/s2-pmtiles"
+homepage = "https://github.com/OpenS2/s2-pmtiles"
+repository = "https://github.com/OpenS2/s2-pmtiles"
+readme = "README.md"
+categories = ["encoding", "wasm", "embedded", "no-std"]
+keywords = ["open", "vector", "tile", "gis", "low-cost-code"]
+license = "MIT"
+# Include only specific files and directories
+# include = ["/rust", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE"]
+exclude = [
+    "/assets",
+    "/node_modules",
+    "/s2-pmtiles-spec",
+    "/docs",
+    "/test",
+    "/tools",
+    "/src",
+]
+
+[lib]
+name = "rust"
+path = "rust/lib.rs"
+bench = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[dev-dependencies]
+# tarpaulin = "*"
+
+[features]
+default = ["std"]
+std = []
+
+[profile.bench]
+opt-level = 3
