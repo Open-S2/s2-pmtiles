@@ -23,10 +23,15 @@ export interface Entry {
  * 4 = zstd
  */
 export enum Compression {
+  /** unknown compression, for if you must use a different or unspecified algorithm. */
   Unknown = 0,
+  /** no compression. */
   None = 1,
+  /** gzip. */
   Gzip = 2,
+  /** brotli. */
   Brotli = 3,
+  /** zstd. */
   Zstd = 4,
 }
 
@@ -43,11 +48,17 @@ export type DecompressFunc = (buf: Uint8Array, compression: Compression) => Prom
  * 0 is unknown/other, 1 is "MVT" vector tiles.
  */
 export enum TileType {
+  /** unknown/other. */
   Unknown = 0,
+  /** Vector tiles. */
   Pbf = 1,
+  /** Image tiles. */
   Png = 2,
+  /** Image tiles. */
   Jpeg = 3,
+  /** Image tiles. */
   Webp = 4,
+  /** Image tiles. */
   Avif = 5,
 }
 
@@ -351,6 +362,7 @@ export function getUint64(dv: DataView, offset: number): number {
 }
 
 /**
+ * Take a large 64-bit number and encode it into a DataView
  * @param dv - a DataView
  * @param offset - the offset in the DataView
  * @param value - the encoded 64-bit number

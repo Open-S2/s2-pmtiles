@@ -7,18 +7,17 @@ export type Face = 0 | 1 | 2 | 3 | 4 | 5;
 /** OpenS2 layer fields */
 export type LayerFields = Record<string, Array<'Number' | 'String' | 'Boolean'>>;
 
+/** Layer Metadata Values */
+export interface LayerMetaValue {
+  description?: string;
+  minzoom: number;
+  maxzoom: number;
+  drawTypes: DrawType[];
+  fields: LayerFields; // max fields size of 10
+}
+
 /** OpenS2 layer metadata */
-export type LayerMetaData = Record<
-  string,
-  {
-    // layer
-    description?: string;
-    minzoom: number;
-    maxzoom: number;
-    drawTypes: DrawType[];
-    fields: LayerFields; // max fields size of 10
-  }
->;
+export type LayerMetaData = Record<string, LayerMetaValue>;
 
 /** Mapbox Vector Tile layer metadata */
 export interface VectorLayerMetaData {

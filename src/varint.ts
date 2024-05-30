@@ -89,6 +89,7 @@ export function writeVarint(val: number, bufPos: BufferPosition): void {
 }
 
 /**
+ * Write a varint larger then 54-bits.
  * @param val - the number
  * @param bufPos - the buffer with it's position to write at
  */
@@ -119,6 +120,7 @@ export function writeBigVarint(val: number, bufPos: BufferPosition): void {
 }
 
 /**
+ * Write a varint larger then 54-bits on the low end
  * @param low - lower 32 bits
  * @param _high - unused "high" bits
  * @param bufPos - the buffer with it's position to write at
@@ -136,6 +138,7 @@ export function writeBigVarintLow(low: number, _high: number, bufPos: BufferPosi
 }
 
 /**
+ * Write a varint larger then 54-bits on the high end
  * @param high - the high 32 bits
  * @param bufPos - the buffer with it's position to write at
  */

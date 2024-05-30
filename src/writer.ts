@@ -43,6 +43,7 @@ export class PMTilesWriter {
   }
 
   /**
+   * Write a tile to the PMTiles file given its (z, x, y) coordinates.
    * @param zoom - the zoom level
    * @param x - the tile X coordinate
    * @param y - the tile Y coordinate
@@ -54,6 +55,7 @@ export class PMTilesWriter {
   }
 
   /**
+   * Write a tile to the PMTiles file given its (face, zoom, x, y) coordinates.
    * @param face - the Open S2 projection face
    * @param zoom - the zoom level
    * @param x - the tile X coordinate
@@ -66,6 +68,7 @@ export class PMTilesWriter {
   }
 
   /**
+   * Write a tile to the PMTiles file given its tile ID.
    * @param tileID - the tile ID
    * @param data - the tile data
    * @param face - If it exists, then we are storing S2 data
