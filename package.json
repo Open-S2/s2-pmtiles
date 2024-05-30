@@ -1,6 +1,6 @@
 {
   "name": "s2-pmtiles",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "This library reads/writes PMTiles V3.0 as well as S2PMTiles V1.0",
   "keywords": [
     "PMTiles",

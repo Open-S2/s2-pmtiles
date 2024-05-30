@@ -20,7 +20,7 @@ describe('File Writer', async () => {
   // write data in tile
   await writer.writeTileXYZ(0, 0, 0, uint8);
   // finish
-  await writer.flush({ metadata: true } as unknown as Metadata);
+  await writer.commit({ metadata: true } as unknown as Metadata);
   test('write', () => {});
 
   const reader = new PMTilesReader(tmpFile);

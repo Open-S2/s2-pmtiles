@@ -62,7 +62,7 @@ export class PMTilesWriter {
    * @param y - the tile Y coordinate
    * @param data - the tile data to store
    */
-  async writeTileFXYZ(face: Face, zoom: number, x: number, y: number, data: Uint8Array) {
+  async writeTileS2(face: Face, zoom: number, x: number, y: number, data: Uint8Array) {
     const tileID = zxyToTileID(zoom, x, y);
     await this.writeTile(tileID, data, face);
   }
@@ -104,16 +104,16 @@ export class PMTilesWriter {
    * Finish writing by building the header with root and leaf directories
    * @param metadata - the metadata to store
    */
-  async flush(metadata: Metadata | S2Metadata): Promise<void> {
-    if (this.#tileEntries.length === 0) await this.#flushS2(metadata);
-    else await this.#flush(metadata);
+  async commit(metadata: Metadata | S2Metadata): Promise<void> {
+    if (this.#tileEntries.length === 0) await this.#commitS2(metadata);
+    else await this.#commit(metadata);
   }
 
   /**
    * Finish writing by building the header with root and leaf directories
    * @param metadata - the metadata to store
    */
-  async #flush(metadata: Metadata | S2Metadata): Promise<void> {
+  async #commit(metadata: Metadata | S2Metadata): Promise<void> {
     const tileEntries = this.#tileEntries;
     // build metadata
     const metaBuffer = Buffer.from(JSON.stringify(metadata));
@@ -179,7 +179,7 @@ export class PMTilesWriter {
    * Finish writing by building the header with root and leaf directories
    * @param metadata - the metadata to store
    */
-  async #flushS2(metadata: Metadata | S2Metadata): Promise<void> {
+  async #commitS2(metadata: Metadata | S2Metadata): Promise<void> {
     const tileEntries = this.#s2tileEntries[0];
     const tileEntries1 = this.#s2tileEntries[1];
     const tileEntries2 = this.#s2tileEntries[2];

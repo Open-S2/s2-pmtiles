@@ -44,35 +44,57 @@ npm install s2-pmtiles
 cargo install s2-pmtiles
 ```
 
-### NOTE
-
-Everything after this needs to be updated.
-
 ### Example use
 
 ```ts
-const fs = from 'fs'
-import { VectorTile } from 's2-pmtiles'
+import { PMTilesReader, PMTilesWriter } from 's2-pmtiles'
 
-// assume you can read (.pbf | .mvt | .ovt)
-const fixture = fs.readFileSync('./x-y-z.vector.pbf')
-// Bun const fixture = new Uint8Array(await Bun.file('./x-y-z.vector.pbf').arrayBuffer())
-// load the protobuf parsing it directly
-const tile = new VectorTile(fixture)
+// The File Reader you can run on bun/node/deno
+const testFixture1 = new PMTilesReader(`test/fixtures/test_fixture_1.pmtiles`);
+// get an WM tile
+let x = 0;
+let y = 0;
+let z = 0;
+let face = 0;
+testFixture1.getTile(x, y, z); // undefied | Uint8Array
+// get an S2 tile
+testFixture1.getTileS2(face, x, y, z); // undefined | Uint8Array
 
-console.log(tile)
+// The File Writer you can run on bun/node/deno
+const testFixture2 = new PMTilesWriter(`tmpFile.pmtiles`);
+// write a tile
+testFixture2.writeTileXYZ(x, y, z, Uint8Array.from([]));
+// write an S2 tile
+testFixture2.writeTileS2(face, x, y, z, Uint8Array.from([]));
+// when you finish you commit to build the metadata
+testFixture2.commit();
 
-// example layer
-const { landuse } = tile.layers
-
-// grab the first feature
-console.log(landuse.feature(0))
-console.log(landuse.feature(0).loadGeometry())
+// The File Reader you can run in the browser
+import { S2PMTilesReader } from 's2-pmtiles/browser';
+// you want to add a true after the path for generic PMTiles, as it ensures 206 byte requests.
+const browserFixture = new S2PMTilesReader(`https://www.example.com/test.pmtiles`, true);
+// get an WM tile
+browserFixture.getTile(x, y, z); // undefied | Uint8Array
+// get an S2 tile
+browserFixture.getTileS2(face, x, y, z); // undefined | Uint8Array
 ```
 
-## General Purpose API
+### Browser Support
 
-### Tile
+Some tsconfigs might need some extra help to see the `s2-pmtiles/browser` package.
+
+To fix this update your tsconfig.json with the following:
+
+```json
+{
+    "compilerOptions": {
+        "baseUrl": "./",
+        "paths": {
+            "s2-pmtiles/browser": ["./node_modules/s2-pmtiles/dist/browser.d.ts"]
+        }
+    }
+}
+```
 
 ---
 
