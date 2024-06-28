@@ -1,6 +1,6 @@
 #![no_std]
 // #![deny(missing_docs)]
-//! The `s2-pmtiles` Rust crate provides functionalities to read and write Open Vector Tile Spec messages.
+//! The `s2-pmtiles` Rust crate provides functionalities to read and write S2-PMTiles Spec messages.
 //! This crate is a 0 dependency package that uses `no_std` and is intended to be used in
 //! embedded systems and WASM applications.
 
