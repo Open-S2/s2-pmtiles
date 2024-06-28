@@ -10,3 +10,4 @@ Features added/changed from the [v3 pmtiles-spec](https://github.com/protomaps/P
 * changed the header format to include 5 more root and leaf directories.
 * Magic Number is now encoded utf-8 `S2`.
 * vector metadata MUST contain a key of `vector_layers` (replace SHOULD)
+* vector metadata follows a the new s2-tilejson format
