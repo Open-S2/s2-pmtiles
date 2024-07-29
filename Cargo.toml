@@ -1,6 +1,6 @@
 [package]
 name = "s2-pmtiles"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Craig O'Connor <oconnorct1@gmail.com>"]
 description = "This library reads/writes The S2 PMTiles 1.0 Specification"
