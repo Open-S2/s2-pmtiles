@@ -1,24 +1,11 @@
 import { createHash } from 'node:crypto';
-import { promisify } from 'node:util';
-import {
-  Compression,
-  HEADER_SIZE_BYTES,
-  ROOT_SIZE,
-  headerToBytes,
-  serializeDir,
-  tileIDToZxy,
-  zxyToTileID,
-} from './pmtiles';
-import { S2_ROOT_SIZE, s2HeaderToBytes } from './s2pmtiles';
+import { Compression, headerToBytes, serializeDir, tileIDToZxy, zxyToTileID } from './pmtiles';
+import { S2_HEADER_SIZE_BYTES, S2_ROOT_SIZE, s2HeaderToBytes } from './s2pmtiles';
 import { appendFile, open } from 'node:fs/promises';
-import { brotliCompress, gzip } from 'zlib';
 
-import type { Compressor, Entry, Header, TileType } from './pmtiles';
-import type { Face, Metadata, S2Metadata } from './metadata';
+import type { Entry, Header, TileType } from './pmtiles';
+import type { Face, Metadata } from 's2-tilejson';
 import type { S2Entries, S2Header } from './s2pmtiles';
-
-const gzipAsync = promisify(gzip);
-const brotliCompressAsync = promisify(brotliCompress);
 
 /** Write a PMTiles file. */
 export class PMTilesWriter {
@@ -28,15 +15,14 @@ export class PMTilesWriter {
   #offset = 0;
   #addressedTiles = 0;
   #clustered = true;
+  compression: Compression = Compression.None;
   /**
    * @param file - the path to the file we want to write to
    * @param type - the tile type
-   * @param compression - the compression for the tiles (the metadata and directories will compress to match in this codebase)
    */
   constructor(
     readonly file: string,
     readonly type: TileType,
-    readonly compression: Compression,
   ) {
     // append the headersize
     appendFile(this.file, new Uint8Array(S2_ROOT_SIZE));
@@ -49,7 +35,7 @@ export class PMTilesWriter {
    * @param y - the tile Y coordinate
    * @param data - the tile data to store
    */
-  async writeTileXYZ(zoom: number, x: number, y: number, data: Uint8Array) {
+  async writeTileXYZ(zoom: number, x: number, y: number, data: Uint8Array): Promise<void> {
     const tileID = zxyToTileID(zoom, x, y);
     await this.writeTile(tileID, data);
   }
@@ -62,7 +48,13 @@ export class PMTilesWriter {
    * @param y - the tile Y coordinate
    * @param data - the tile data to store
    */
-  async writeTileS2(face: Face, zoom: number, x: number, y: number, data: Uint8Array) {
+  async writeTileS2(
+    face: Face,
+    zoom: number,
+    x: number,
+    y: number,
+    data: Uint8Array,
+  ): Promise<void> {
     const tileID = zxyToTileID(zoom, x, y);
     await this.writeTile(tileID, data, face);
   }
@@ -73,7 +65,7 @@ export class PMTilesWriter {
    * @param data - the tile data
    * @param face - If it exists, then we are storing S2 data
    */
-  async writeTile(tileID: number, data: Uint8Array, face?: Face) {
+  async writeTile(tileID: number, data: Uint8Array, face?: Face): Promise<void> {
     const length = data.length;
     const tileEntries = face !== undefined ? this.#s2tileEntries[face] : this.#tileEntries;
     if (tileEntries.length > 0 && tileID < (tileEntries.at(-1) as Entry).tileID) {
@@ -104,7 +96,7 @@ export class PMTilesWriter {
    * Finish writing by building the header with root and leaf directories
    * @param metadata - the metadata to store
    */
-  async commit(metadata: Metadata | S2Metadata): Promise<void> {
+  async commit(metadata: Metadata): Promise<void> {
     if (this.#tileEntries.length === 0) await this.#commitS2(metadata);
     else await this.#commit(metadata);
   }
@@ -113,7 +105,7 @@ export class PMTilesWriter {
    * Finish writing by building the header with root and leaf directories
    * @param metadata - the metadata to store
    */
-  async #commit(metadata: Metadata | S2Metadata): Promise<void> {
+  async #commit(metadata: Metadata): Promise<void> {
     const tileEntries = this.#tileEntries;
     // build metadata
     const metaBuffer = Buffer.from(JSON.stringify(metadata));
@@ -122,20 +114,18 @@ export class PMTilesWriter {
       metaBuffer.byteOffset,
       metaBuffer.byteLength,
     );
-    const metaCompressed = await this.#compress(metauint8);
 
     // optimize directories
-    const { rootBytes, leavesBytes } = await optimizeDirectories(
+    const { rootBytes, leavesBytes } = optimizeDirectories(
       tileEntries,
-      ROOT_SIZE - HEADER_SIZE_BYTES - metaCompressed.byteLength,
-      this.#compress.bind(this),
+      S2_ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
     );
 
     // build header data
-    const rootDirectoryOffset = HEADER_SIZE_BYTES;
+    const rootDirectoryOffset = S2_HEADER_SIZE_BYTES;
     const rootDirectoryLength = rootBytes.byteLength;
     const jsonMetadataOffset = rootDirectoryOffset + rootDirectoryLength;
-    const jsonMetadataLength = metaCompressed.byteLength;
+    const jsonMetadataLength = metauint8.byteLength;
     const leafDirectoryOffset = this.#offset + S2_ROOT_SIZE;
     const leafDirectoryLength = leavesBytes.byteLength;
     this.#offset += leavesBytes.byteLength;
@@ -159,7 +149,7 @@ export class PMTilesWriter {
       numTileEntries: tileEntries.length,
       numTileContents: this.#hashToOffset.size,
       clustered: this.#clustered,
-      internalCompression: this.compression,
+      internalCompression: Compression.None,
       tileCompression: this.compression,
       tileType: this.type,
       minZoom,
@@ -171,7 +161,7 @@ export class PMTilesWriter {
     const fileHandle = await open(this.file, 'r+');
     await fileHandle.write(serialzedHeader, 0, serialzedHeader.byteLength, 0);
     await fileHandle.write(rootBytes, 0, rootBytes.byteLength, rootDirectoryOffset);
-    await fileHandle.write(metaCompressed, 0, metaCompressed.byteLength, jsonMetadataOffset);
+    await fileHandle.write(metauint8, 0, metauint8.byteLength, jsonMetadataOffset);
     await fileHandle.close();
   }
 
@@ -179,7 +169,7 @@ export class PMTilesWriter {
    * Finish writing by building the header with root and leaf directories
    * @param metadata - the metadata to store
    */
-  async #commitS2(metadata: Metadata | S2Metadata): Promise<void> {
+  async #commitS2(metadata: Metadata): Promise<void> {
     const tileEntries = this.#s2tileEntries[0];
     const tileEntries1 = this.#s2tileEntries[1];
     const tileEntries2 = this.#s2tileEntries[2];
@@ -193,42 +183,35 @@ export class PMTilesWriter {
       metaBuffer.byteOffset,
       metaBuffer.byteLength,
     );
-    const metaCompressed = await this.#compress(metauint8);
 
     // optimize directories
-    const { rootBytes, leavesBytes } = await optimizeDirectories(
+    const { rootBytes, leavesBytes } = optimizeDirectories(
       tileEntries,
-      ROOT_SIZE - HEADER_SIZE_BYTES,
-      this.#compress.bind(this),
+      S2_ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
     );
-    const { rootBytes: rootBytes1, leavesBytes: leavesBytes1 } = await optimizeDirectories(
+    const { rootBytes: rootBytes1, leavesBytes: leavesBytes1 } = optimizeDirectories(
       tileEntries1,
-      ROOT_SIZE - HEADER_SIZE_BYTES,
-      this.#compress.bind(this),
+      S2_ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
     );
-    const { rootBytes: rootBytes2, leavesBytes: leavesBytes2 } = await optimizeDirectories(
+    const { rootBytes: rootBytes2, leavesBytes: leavesBytes2 } = optimizeDirectories(
       tileEntries2,
-      ROOT_SIZE - HEADER_SIZE_BYTES,
-      this.#compress.bind(this),
+      S2_ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
     );
-    const { rootBytes: rootBytes3, leavesBytes: leavesBytes3 } = await optimizeDirectories(
+    const { rootBytes: rootBytes3, leavesBytes: leavesBytes3 } = optimizeDirectories(
       tileEntries3,
-      ROOT_SIZE - HEADER_SIZE_BYTES,
-      this.#compress.bind(this),
+      S2_ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
     );
-    const { rootBytes: rootBytes4, leavesBytes: leavesBytes4 } = await optimizeDirectories(
+    const { rootBytes: rootBytes4, leavesBytes: leavesBytes4 } = optimizeDirectories(
       tileEntries4,
-      ROOT_SIZE - HEADER_SIZE_BYTES,
-      this.#compress.bind(this),
+      S2_ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
     );
-    const { rootBytes: rootBytes5, leavesBytes: leavesBytes5 } = await optimizeDirectories(
+    const { rootBytes: rootBytes5, leavesBytes: leavesBytes5 } = optimizeDirectories(
       tileEntries5,
-      ROOT_SIZE - HEADER_SIZE_BYTES,
-      this.#compress.bind(this),
+      S2_ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
     );
 
     // build header data
-    const rootDirectoryOffset = HEADER_SIZE_BYTES;
+    const rootDirectoryOffset = S2_HEADER_SIZE_BYTES;
     const rootDirectoryLength = rootBytes.byteLength;
     const rootDirectoryOffset1 = rootDirectoryOffset + rootDirectoryLength;
     const rootDirectoryLength1 = rootBytes1.byteLength;
@@ -242,7 +225,7 @@ export class PMTilesWriter {
     const rootDirectoryLength5 = rootBytes5.byteLength;
     // metadata
     const jsonMetadataOffset = rootDirectoryOffset5 + rootDirectoryLength5;
-    const jsonMetadataLength = metaCompressed.byteLength;
+    const jsonMetadataLength = metauint8.byteLength;
     // leafs
     const leafDirectoryOffset = this.#offset + S2_ROOT_SIZE;
     const leafDirectoryLength = leavesBytes.byteLength;
@@ -307,7 +290,7 @@ export class PMTilesWriter {
       numTileEntries: tileEntries.length,
       numTileContents: this.#hashToOffset.size,
       clustered: this.#clustered,
-      internalCompression: this.compression,
+      internalCompression: Compression.None,
       tileCompression: this.compression,
       tileType: this.type,
       minZoom,
@@ -324,30 +307,8 @@ export class PMTilesWriter {
     await fileHandle.write(rootBytes3, 0, rootBytes3.byteLength, rootDirectoryOffset3);
     await fileHandle.write(rootBytes4, 0, rootBytes4.byteLength, rootDirectoryOffset4);
     await fileHandle.write(rootBytes5, 0, rootBytes5.byteLength, rootDirectoryOffset5);
-    await fileHandle.write(metaCompressed, 0, metaCompressed.byteLength, jsonMetadataOffset);
-    await fileHandle.write(leavesBytes, 0, leavesBytes.byteLength, leafDirectoryOffset);
+    await fileHandle.write(metauint8, 0, metauint8.byteLength, jsonMetadataOffset);
     await fileHandle.close();
-  }
-
-  /**
-   * @param data - the data to compress
-   * @returns - the compressed data
-   */
-  async #compress(data: Uint8Array): Promise<Uint8Array> {
-    let res: Buffer;
-    if (this.compression == Compression.None) {
-      res = Buffer.from(data);
-    } else if (this.compression == Compression.Brotli) {
-      res = await brotliCompressAsync(data);
-    } else if (this.compression == Compression.Gzip) {
-      res = await gzipAsync(data);
-    } else if (this.compression == Compression.Zstd) {
-      throw Error('Zstd compression not implemented');
-    } else {
-      throw Error('Unknown compression');
-    }
-
-    return new Uint8Array(res.buffer, res.byteOffset, res.byteLength);
   }
 }
 
@@ -364,14 +325,9 @@ interface OptimizedDirectory {
 /**
  * @param entries - the tile entries
  * @param leafSize - the max leaf size
- * @param compressor - the compression method
  * @returns - the optimized directories
  */
-async function buildRootsLeaves(
-  entries: Entry[],
-  leafSize: number,
-  compressor: Compressor,
-): Promise<OptimizedDirectory> {
+function buildRootsLeaves(entries: Entry[], leafSize: number): OptimizedDirectory {
   const rootEntries: Entry[] = [];
   let leavesBytes = new Uint8Array(0);
   let numLeaves = 0;
@@ -379,7 +335,7 @@ async function buildRootsLeaves(
   let i = 0;
   while (i < entries.length) {
     numLeaves += 1;
-    const serialized = await serializeDir(entries.slice(i, i + leafSize), compressor);
+    const serialized = serializeDir(entries.slice(i, i + leafSize));
     rootEntries.push({
       tileID: entries[i].tileID,
       offset: leavesBytes.length,
@@ -390,27 +346,22 @@ async function buildRootsLeaves(
     i += leafSize;
   }
 
-  return { rootBytes: await serializeDir(rootEntries, compressor), leavesBytes, numLeaves };
+  return { rootBytes: serializeDir(rootEntries), leavesBytes, numLeaves };
 }
 
 /**
  * @param entries - the tile entries
  * @param targetRootLength - the max leaf size
- * @param compressor - the compression method
  * @returns - the optimized directories
  */
-async function optimizeDirectories(
-  entries: Entry[],
-  targetRootLength: number,
-  compressor: Compressor,
-): Promise<OptimizedDirectory> {
-  const testBytes = await serializeDir(entries, compressor);
+function optimizeDirectories(entries: Entry[], targetRootLength: number): OptimizedDirectory {
+  const testBytes = serializeDir(entries);
   if (testBytes.length < targetRootLength)
     return { rootBytes: testBytes, leavesBytes: new Uint8Array(0), numLeaves: 0 };
 
   let leafSize = 4096;
   while (true) {
-    const build = await buildRootsLeaves(entries, leafSize, compressor);
+    const build = buildRootsLeaves(entries, leafSize);
     if (build.rootBytes.length < targetRootLength) return build;
     leafSize *= 2;
   }

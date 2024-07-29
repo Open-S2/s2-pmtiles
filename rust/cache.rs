@@ -1,46 +1,56 @@
-use crate::pmtiles::Entry;
+#[cfg(feature = "alloc")]
+extern crate alloc;
 
-// /**
-//  * A cache of directories.
-//  * The key is the offset in the data and the value is the directory entries.
-//  */
-// export default class DirCache<K = number, V = Entry[]> extends Map<K, V> {
-//   order: K[] = [];
-//   /**
-//    * @param maxSize - the max size of the cache before dumping old data
-//    */
-//   constructor(private readonly maxSize: number) {
-//     super();
-//   }
+use alloc::vec::Vec;
+use alloc::collections::BTreeMap;
 
-//   /**
-//    * @param key - the offset position in the data
-//    * @param dir - the directory entries
-//    * @returns this
-//    */
-//   set(key: K, dir: V): this {
-//     // place in front the new
-//     this.order.unshift(key);
-//     while (this.order.length > this.maxSize) this.delete(this.order.pop() as K);
-//     return super.set(key, dir);
-//   }
+/// A simple cache system with a maximum size.
+/// The key is the offset in the data and the value is the directory entries.
+#[derive(Debug, Default)]
+pub struct DirCache<K, V> {
+    cache: BTreeMap<K, V>,
+    order: Vec<K>,
+    max_size: usize,
+}
 
-//   /**
-//    * @param key - the offset position in the data
-//    * @returns - the directories entries if found
-//    */
-//   get(key: K): V | undefined {
-//     // update the place in the array and than get
-//     this.order.splice(this.order.indexOf(key), 1);
-//     this.order.unshift(key);
-//     return super.get(key);
-//   }
+impl<K: Ord + Clone, V> DirCache<K, V> {
+    /// Creates a new DirCache with the specified maximum size.
+    pub fn new(max_size: usize) -> Self {
+        DirCache {
+            cache: BTreeMap::new(),
+            order: Vec::new(),
+            max_size,
+        }
+    }
 
-//   /**
-//    * @param key - the offset position in the data
-//    * @returns - true if found
-//    */
-//   delete(key: K): boolean {
-//     return super.delete(key);
-//   }
-// }
+    /// Inserts a key-value pair into the cache, applying LRU rules.
+    pub fn set(&mut self, key: K, dir: V) -> &mut Self {
+        // Place the new key at the front of the order list
+        self.order.insert(0, key.clone());
+        while self.order.len() > self.max_size {
+            if let Some(oldest_key) = self.order.pop() {
+                self.cache.remove(&oldest_key);
+            }
+        }
+        self.cache.insert(key, dir);
+        self
+    }
+
+    /// Retrieves a reference to the value corresponding to the key, if it exists,
+    /// while also updating its position in the LRU order.
+    pub fn get(&mut self, key: &K) -> Option<&V> {
+        if let Some(pos) = self.order.iter().position(|k| k == key) {
+            let key_clone = self.order.remove(pos);
+            self.order.insert(0, key_clone);
+        }
+        self.cache.get(key)
+    }
+
+    /// Removes a key from the cache, if it exists.
+    pub fn delete(&mut self, key: &K) -> bool {
+        if let Some(pos) = self.order.iter().position(|k| k == key) {
+            self.order.remove(pos);
+        }
+        self.cache.remove(key).is_some()
+    }
+}

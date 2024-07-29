@@ -24,20 +24,28 @@ exclude = [
 ]
 
 [lib]
-name = "rust"
+name = "s2_pmtiles"
 path = "rust/lib.rs"
 bench = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["std"]
+# Provide impls for types in the Rust core allocation and collections library
+alloc = []
+# Provide impls for common standard library types like Vec<T> and HashMap<K, V>.
+# Requires a dependency on the Rust standard library.
+std = ["alloc"]
+
 [dependencies]
+s2-tilejson = "0.3"
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+sha2 = "0.10"
 
 [dev-dependencies]
 # tarpaulin = "*"
-
-[features]
-default = ["std"]
-std = []
 
 [profile.bench]
 opt-level = 3

@@ -1,23 +1,11 @@
 import DirCache from './cache';
 import { decompressSync } from 'fflate';
-import {
-  Compression,
-  type Entry,
-  type Header,
-  bytesToHeader,
-  deserializeDir,
-  findTile,
-  zxyToTileID,
-} from './pmtiles';
-import {
-  type S2Entries,
-  type S2Header,
-  S2_HEADER_SIZE_BYTES,
-  S2_ROOT_SIZE,
-  s2BytesToHeader,
-} from './s2pmtiles';
+import { Compression, bytesToHeader, deserializeDir, findTile, zxyToTileID } from './pmtiles';
+import { S2_HEADER_SIZE_BYTES, S2_ROOT_SIZE, s2BytesToHeader } from './s2pmtiles';
 
-import type { Face, Metadata, S2Metadata } from './metadata';
+import type { Entry, Header } from './pmtiles';
+import type { Face, Metadata } from 's2-tilejson';
+import type { S2Entries, S2Header } from './s2pmtiles';
 
 // export DirCache for browsers to use (reduce code duplication)
 export { default as DirCache } from './cache';
@@ -28,7 +16,7 @@ export default class S2PMTilesReader {
   // root directory will exist if header does
   #rootDir: Entry[] = [];
   #rootDirS2: S2Entries = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [] };
-  #metadata!: Metadata | S2Metadata;
+  #metadata!: Metadata;
   readonly #dirCache: DirCache;
   readonly #decoder = new TextDecoder('utf-8');
 
@@ -58,7 +46,7 @@ export default class S2PMTilesReader {
     const isS2 = headerData[0] === 83 && headerData[1] === 50;
     // header
     const headerFunction = isS2 ? s2BytesToHeader : bytesToHeader;
-    const header = (this.#header = headerFunction(headerData, ''));
+    const header = (this.#header = headerFunction(headerData));
 
     // json metadata
     const jsonMetadata = data.slice(
@@ -109,7 +97,7 @@ export default class S2PMTilesReader {
   }
 
   /** @returns - the metadata of the archive */
-  async getMetadata(): Promise<Metadata | S2Metadata> {
+  async getMetadata(): Promise<Metadata> {
     await this.#getMetadata(); // ensure loaded first
     return this.#metadata;
   }

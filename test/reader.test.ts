@@ -2,7 +2,32 @@ import { Compression } from '../src/pmtiles';
 import { PMTilesReader } from '../src/reader';
 import { describe, expect, test } from 'bun:test';
 
-import type { Metadata } from '../src/metadata';
+/** External old metadata spec */
+interface MetaExternal {
+  name: string;
+  description: string;
+  version: string;
+  type: string;
+  generator: string;
+  generator_options: string;
+  vector_layers: Array<{
+    id: string;
+    description?: string;
+    minzoom: number;
+    maxzoom: number;
+    fields: Record<string, string>;
+  }>;
+  tilestats: {
+    layerCount: number;
+    layers: Array<{
+      layer: string;
+      count: number;
+      geometry: string;
+      attributeCount: number;
+      attributes: Array<string>;
+    }>;
+  };
+}
 
 describe('File Reader', async () => {
   test('test_fixture_1', async () => {
@@ -12,7 +37,6 @@ describe('File Reader', async () => {
     // header
     expect(header).toEqual({
       clustered: false,
-      etag: '',
       internalCompression: Compression.Gzip,
       jsonMetadataLength: 247,
       jsonMetadataOffset: 152,
@@ -32,7 +56,7 @@ describe('File Reader', async () => {
       tileType: 1,
     });
     // metadata
-    expect(testFixture1.getMetadata()).toEqual({
+    expect(testFixture1.getMetadata() as unknown as MetaExternal).toEqual({
       name: 'test_fixture_1.pmtiles',
       description: 'test_fixture_1.pmtiles',
       version: '2',
@@ -60,7 +84,7 @@ describe('File Reader', async () => {
           },
         ],
       },
-    } as Metadata);
+    });
     // TILE
     const tile = await testFixture1.getTile(0, 0, 0);
     expect(tile).toBeInstanceOf(Uint8Array);
@@ -80,7 +104,6 @@ describe('File Reader', async () => {
     // header
     expect(header).toEqual({
       clustered: false,
-      etag: '',
       internalCompression: Compression.Gzip,
       jsonMetadataLength: 247,
       jsonMetadataOffset: 152,
@@ -100,7 +123,7 @@ describe('File Reader', async () => {
       tileType: 1,
     });
     // metadata
-    expect(testFixture2.getMetadata()).toEqual({
+    expect(testFixture2.getMetadata() as unknown as MetaExternal).toEqual({
       name: 'test_fixture_2.pmtiles',
       description: 'test_fixture_2.pmtiles',
       version: '2',

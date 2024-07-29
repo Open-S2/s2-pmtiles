@@ -6,7 +6,7 @@ import { S2_HEADER_SIZE_BYTES, S2_ROOT_SIZE, s2BytesToHeader } from './s2pmtiles
 import { brotliDecompress, gunzip } from 'node:zlib';
 
 import type { Entry, Header } from './pmtiles';
-import type { Face, Metadata, S2Metadata } from './metadata';
+import type { Face, Metadata } from 's2-tilejson';
 import type { S2Entries, S2Header } from './s2pmtiles';
 
 // Promisify the zlib methods
@@ -19,7 +19,7 @@ export class PMTilesReader {
   // root directory will exist if header does
   #rootDir: Entry[] = [];
   #rootDirS2: S2Entries = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [] };
-  #metadata!: Metadata | S2Metadata;
+  #metadata!: Metadata;
   #dirCache: DirCache;
   #decoder = new TextDecoder('utf-8');
 
@@ -39,15 +39,16 @@ export class PMTilesReader {
    * @returns - the header of the archive along with the root directory,
    * including information such as tile type, min/max zoom, bounds, and summary statistics.
    */
-  async #getMetadata(): Promise<Header> {
+  async #getHeader(): Promise<Header> {
     if (this.#header !== undefined) return this.#header;
     const data = await this.#getRange(0, S2_ROOT_SIZE);
     const headerData = data.slice(0, S2_HEADER_SIZE_BYTES);
+
     // check if s2
     const isS2 = headerData[0] === 83 && headerData[1] === 50;
     // header
     const headerFunction = isS2 ? s2BytesToHeader : bytesToHeader;
-    const header = (this.#header = headerFunction(headerData, ''));
+    const header = (this.#header = headerFunction(headerData));
 
     // json metadata
     const jsonMetadata = data.slice(
@@ -78,13 +79,13 @@ export class PMTilesReader {
   async #getS2Metadata(data: Uint8Array, header: S2Header): Promise<void> {
     // move the root directory to the s2 root
     this.#rootDirS2[0] = this.#rootDir;
-    // add the 4 other faces
+    // add the 5 other faces
     for (const face of [1, 2, 3, 4, 5]) {
       const rootOffset = `rootDirectoryOffset${face}` as keyof S2Header;
-      const rootLenght = `rootDirectoryLength${face}` as keyof S2Header;
+      const rootLength = `rootDirectoryLength${face}` as keyof S2Header;
       const faceDirData = data.slice(
         header[rootOffset] as number,
-        (header[rootOffset] as number) + (header[rootLenght] as number),
+        (header[rootOffset] as number) + (header[rootLength] as number),
       );
       this.#rootDirS2[face as keyof S2Entries] = deserializeDir(
         await decompress(faceDirData, header.internalCompression),
@@ -93,12 +94,12 @@ export class PMTilesReader {
   }
 
   /** @returns - the header of the archive */
-  async getHeader(): Promise<Header> {
-    return await this.#getMetadata();
+  async getHeader(): Promise<Header | S2Header> {
+    return await this.#getHeader();
   }
 
   /** @returns - the metadata of the archive */
-  getMetadata(): Metadata | S2Metadata {
+  getMetadata(): Metadata {
     return this.#metadata;
   }
 
@@ -136,7 +137,7 @@ export class PMTilesReader {
     x: number,
     y: number,
   ): Promise<Uint8Array | undefined> {
-    const header = await this.#getMetadata();
+    const header = await this.#getHeader();
     const tileID = zxyToTileID(zoom, x, y);
     const { minZoom, maxZoom, rootDirectoryOffset, rootDirectoryLength, tileDataOffset } = header;
     if (zoom < minZoom || zoom > maxZoom) return undefined;
@@ -168,7 +169,7 @@ export class PMTilesReader {
    */
   async #getDirectory(offset: number, length: number, face: number): Promise<Entry[] | undefined> {
     const dir = face === -1 ? this.#rootDir : this.#rootDirS2[face as Face];
-    const header = await this.#getMetadata();
+    const header = await this.#getHeader();
     const { internalCompression, rootDirectoryOffset } = header;
     // if rootDirectoryOffset, return roon
     if (offset === rootDirectoryOffset) return dir;

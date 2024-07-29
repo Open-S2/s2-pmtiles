@@ -43,11 +43,10 @@ export const S2_ROOT_SIZE = 98_304;
 /**
  * Parse raw header bytes into a Header object.
  * @param bytes - the raw header bytes
- * @param etag - the etag of the PMTiles archive
  * @returns the parsed header
  */
-export function s2BytesToHeader(bytes: Uint8Array, etag: string = ''): S2Header {
-  const baseHeader = bytesToHeader(bytes, etag);
+export function s2BytesToHeader(bytes: Uint8Array): S2Header {
+  const baseHeader = bytesToHeader(bytes);
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 
   return {
@@ -85,8 +84,8 @@ export function s2HeaderToBytes(header: S2Header): Uint8Array {
   base.set(defaultHeader, 0);
   const dv = new DataView(base.buffer);
   // re-write the magic number and spec version
-  const s2Uint16 = ('S'.charCodeAt(0) << 8) | '2'.charCodeAt(0);
-  dv.setUint16(0, s2Uint16, true);
+  dv.setUint8(0, 'S'.charCodeAt(0));
+  dv.setUint8(1, '2'.charCodeAt(0));
   dv.setUint8(7, 1);
   // now add the rest of the header
   setUint64(dv, 102, header.rootDirectoryOffset1);

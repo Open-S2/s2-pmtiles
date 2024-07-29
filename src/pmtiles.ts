@@ -226,10 +226,9 @@ export function findTile(entries: Entry[], tileID: number): Entry | null {
 /**
  * Parse raw header bytes into a Header object.
  * @param bytes - the raw header bytes
- * @param etag - the etag of the PMTiles archive
  * @returns the parsed header
  */
-export function bytesToHeader(bytes: Uint8Array, etag: string = ''): Header {
+export function bytesToHeader(bytes: Uint8Array): Header {
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   // if (dv.getUint16(0, true) !== 0x4d50) {
   //   throw new Error('Wrong magic number for PMTiles archive');
@@ -254,7 +253,6 @@ export function bytesToHeader(bytes: Uint8Array, etag: string = ''): Header {
     tileType: dv.getUint8(99),
     minZoom: dv.getUint8(100),
     maxZoom: dv.getUint8(101),
-    etag,
   };
 }
 
@@ -320,17 +318,10 @@ export function deserializeDir(buffer: Uint8Array): Entry[] {
 }
 
 /**
- * @param data - the data to compress
- * @returns - the compressed data
- */
-export type Compressor = (data: Uint8Array) => Promise<Uint8Array>;
-
-/**
  * @param entries - the directory entries
- * @param compressor - the compressor to use, defaults to none
  * @returns - the serialized directory
  */
-export async function serializeDir(entries: Entry[], compressor: Compressor): Promise<Uint8Array> {
+export function serializeDir(entries: Entry[]): Uint8Array {
   const data = { buf: new Uint8Array(0), pos: 0 };
 
   writeVarint(entries.length, data);
@@ -345,9 +336,7 @@ export async function serializeDir(entries: Entry[], compressor: Compressor): Pr
   for (let i = 0; i < entries.length; i++) writeVarint(entries[i].length, data);
   for (let i = 0; i < entries.length; i++) writeVarint(entries[i].offset + 1, data);
 
-  const buf = new Uint8Array(data.buf.buffer, data.buf.byteOffset, data.pos);
-
-  return await compressor(buf);
+  return new Uint8Array(data.buf.buffer, data.buf.byteOffset, data.pos);
 }
 
 /**
