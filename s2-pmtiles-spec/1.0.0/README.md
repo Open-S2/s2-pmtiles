@@ -60,20 +60,28 @@ Offset     00   01   02   03   04   05   06   07   08   09   0A   0B   0C   0D  
          +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
 000050   |         Number of Tile Entries        |        Number of Tile Contents        |
          +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
-000060   |  C | IC | TC | TT |MinZ|MaxZ|              Min Position             |      Max 
+000060   |  C | IC | TC | TT |MinZ|MaxZ|          Root Directory Offset 1           | 
          +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
-000070    Position                     |CenZ|            Center Position            |
+000070       Root Directory Length 1        |     Root Directory Offset 2           |
          +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
-000080   |    Root Directory Offset 1       |   Root Directory Length 1             |
+000080       Root Directory Length 2        |     Root Directory Offset 3           |
          +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
-000090   |    Root Directory Offset 2       |   Root Directory Length 2             |
+000090       Root Directory Length 3        |     Root Directory Offset 4           |
          +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
-0000A0   |    Root Directory Offset 3       |   Root Directory Length 3             |
+0000A0       Root Directory Length 4        |     Root Directory Offset 5           |
          +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
-0000B0   |    Root Directory Offset 4       |   Root Directory Length 4             |
+0000B0       Root Directory Length 5        |     Leaf Directory Offset 1           |
          +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
-0000C0   |    Root Directory Offset 5       |   Root Directory Length 5             |
-         +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+0000C0       Leaf Directory Length 1        |     Leaf Directory Offset 2           |
+         +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+0000D0       Leaf Directory Length 2        |     Leaf Directory Offset 3           |
+         +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+0000E0       Leaf Directory Length 3        |     Leaf Directory Offset 4           |
+         +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+0000F0       Leaf Directory Length 4        |     Leaf Directory Offset 5           |
+         +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+000100       Leaf Directory Length 5        |
+         +----+----+----+----+----+----+----+
 ```
 
 ### 3.2 Fields

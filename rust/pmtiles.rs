@@ -19,14 +19,16 @@ pub const HEADER_SIZE_BYTES: usize = 127;
 pub const ROOT_SIZE: usize = 16_384;
 
 /// An array of two numbers representing a point in 2D space
+#[derive(Debug)]
 pub struct Point2D {
     /// x coordinate
-    pub x: u64,
+    pub x: i64,
     /// y coordinate
-    pub y: u64,
+    pub y: i64,
 }
 
 /// A tile, in the format of ZXY
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Tile {
     /// zoom level
     pub zoom: u8,
@@ -58,20 +60,20 @@ impl Tile {
 
     /// Create a Tile instance from a zoom and position
     pub fn from_zoom_pos(zoom: u8, pos: u64) -> Tile {
-        let n: u64 = 2u64.pow(zoom as u32);
-        let mut t = pos;
+        let n: i64 = 1 << zoom;
+        let mut t = pos as i64;
         let mut xy = Point2D{ x: 0, y: 0 };
-        let mut s = 1;
+        let mut s: i64 = 1;
         while s < n {
-            let rx = 1 & (t / 2);
-            let ry = 1 & (t ^ rx);
+            let rx: i64 = 1 & (t / 2);
+            let ry: i64 = 1 & (t ^ rx);
             rotate(s, &mut xy, rx, ry);
             xy.x += s * rx;
             xy.y += s * ry;
             t /= 4;
             s *= 2;
         }
-        Tile { zoom, x: xy.x, y: xy.y }
+        Tile { zoom, x: xy.x as u64, y: xy.y as u64 }
     }
 
     /// Convert a Tile instance to an ID
@@ -82,20 +84,20 @@ impl Tile {
             self.y > 2u64.pow(self.zoom as u32) - 1
         { unreachable!() }
       
-        let acc: u64 = TZ_VALUES[self.zoom as usize];
-        let n = 2u64.pow(self.zoom as u32);
-        let mut d = 0;
-        let mut xy = Point2D{ x: self.x, y: self.y };
-        let mut s = n / 2;
-        while s > 0 {
+        let n: u64 = 1 << self.zoom;
+        let mut d: i64 = 0;
+        let mut xy = Point2D{ x: self.x as i64, y: self.y as i64 };
+        let mut s: i64 = (n as i64) / 2;
+        loop {
             let rx = if (xy.x & s) > 0 { 1 } else { 0 };
             let ry = if (xy.y & s) > 0 { 1 } else { 0 };
             d += s * s * ((3 * rx) ^ ry);
             rotate(s, &mut xy, rx, ry);
+            if s <= 1 { break; }
             s /= 2;
         }
 
-        acc + d
+        TZ_VALUES[self.zoom as usize] + (d as u64)
     }
 }
 
@@ -119,7 +121,7 @@ impl Entry {
 }
 
 /// PMTiles v3 directory. A collection of Entry instances for storage
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Directory {
     /// entries
     pub entries: Vec<Entry>,
@@ -162,7 +164,7 @@ impl Directory {
     pub fn serialize(&self) -> Vec<u8> {
         let mut buffer = Buffer::new();
 
-        buffer.write_varint(self.entries.len() as u64);
+        buffer.write_varint(self.entries.len());
 
         let mut last_id = 0;
         for e in &self.entries {
@@ -170,8 +172,8 @@ impl Directory {
             last_id = e.tile_id;
         }
 
-        for e in &self.entries { buffer.write_varint(e.run_length as u64); }
-        for e in &self.entries { buffer.write_varint(e.length as u64); }
+        for e in &self.entries { buffer.write_varint(e.run_length); }
+        for e in &self.entries { buffer.write_varint(e.length); }
         for e in &self.entries { buffer.write_varint(e.offset + 1); }
 
         buffer.take()
@@ -238,7 +240,7 @@ impl Directory {
 /// 2 = gzip
 /// 3 = brotli
 /// 4 = zstd
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
 pub enum Compression {
   /// unknown compression, for if you must use a different or unspecified algorithm
   Unknown = 0,
@@ -288,7 +290,7 @@ impl From<Compression> for String {
 
 /// Describe the type of tiles stored in the archive.
 /// 0 is unknown/other, 1 is "MVT" vector tiles.
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
 pub enum TileType {
   /// unknown/other.
   Unknown = 0,
@@ -341,7 +343,7 @@ impl From<TileType> for String {
 }
 
 /// PMTiles v3 header storing basic archive-level information.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Header {
     /// Only v3 PMTiles supported
     pub version: u8,
@@ -362,11 +364,11 @@ pub struct Header {
     /// the length of the tile data
     pub data_length: u64,
     /// the number of addressed tiles
-    pub n_addressed_tiles: Option<u64>,
+    pub n_addressed_tiles: u64,
     /// the number of tile entries
-    pub n_tile_entries: Option<u64>,
+    pub n_tile_entries: u64,
     /// the number of tile contents
-    pub n_tile_contents: Option<u64>,
+    pub n_tile_contents: u64,
     /// if the archive is clustered
     pub clustered: bool,
     /// what kind of compression is used for the Entries and metadata
@@ -398,7 +400,6 @@ pub struct Header {
 impl Header {
     /// Create a new Header from a buffer
     pub fn from_bytes(buffer: &mut Buffer) -> Header {
-        buffer.set_pos(7);
         Header {
             version: buffer.get_u8_at(7),
             root_directory_offset: buffer.get_u64_at(8),
@@ -409,9 +410,9 @@ impl Header {
             leaf_directory_length: buffer.get_u64_at(48),
             data_offset: buffer.get_u64_at(56),
             data_length: buffer.get_u64_at(64),
-            n_addressed_tiles: Some(buffer.get_u64_at(72)),
-            n_tile_entries: Some(buffer.get_u64_at(80)),
-            n_tile_contents: Some(buffer.get_u64_at(88)),
+            n_addressed_tiles: buffer.get_u64_at(72),
+            n_tile_entries: buffer.get_u64_at(80),
+            n_tile_contents: buffer.get_u64_at(88),
             clustered: buffer.get_u8_at(96) == 1,
             internal_compression: Compression::from(buffer.get_u8_at(97)),
             tile_compression: Compression::from(buffer.get_u8_at(98)),
@@ -454,9 +455,9 @@ impl Header {
         buffer.set_u64_at(64, self.data_length);
 
         // Number of addressed tiles, tile entries, and tile contents at positions 72, 80, and 88
-        buffer.set_u64_at(72, self.n_addressed_tiles.unwrap_or(0));
-        buffer.set_u64_at(80, self.n_tile_entries.unwrap_or(0));
-        buffer.set_u64_at(88, self.n_tile_contents.unwrap_or(0));
+        buffer.set_u64_at(72, self.n_addressed_tiles);
+        buffer.set_u64_at(80, self.n_tile_entries);
+        buffer.set_u64_at(88, self.n_tile_contents);
 
         // Flags and types at positions 96 through 101
         buffer.set_u8_at(96, if self.clustered { 1 } else { 0 });
@@ -466,23 +467,35 @@ impl Header {
         buffer.set_u8_at(100, self.min_zoom);
         buffer.set_u8_at(101, self.max_zoom);
 
+        // Minimum and maximum coordinates
+        buffer.set_i32_at(102, (self.min_longitude * 10_000_000.0) as i32);
+        buffer.set_i32_at(106, (self.min_latitude * 10_000_000.0) as i32);
+        buffer.set_i32_at(110, (self.max_longitude * 10_000_000.0) as i32);
+        buffer.set_i32_at(114, (self.max_latitude * 10_000_000.0) as i32);
+
+        // Center zoom and center coordinates
+        buffer.set_u8_at(118, self.center_zoom);
+        buffer.set_i32_at(119, (self.center_longitude * 10_000_000.0) as i32);
+        buffer.set_i32_at(123, (self.center_latitude * 10_000_000.0) as i32);
+
         buffer
     }
 }
 
 /// rotate xy by n
-pub fn rotate(n: u64, xy: &mut Point2D, rx: u64, ry: u64) {
-  if ry == 0 {
-    if rx == 1 {
-      xy.x = n - 1 - xy.x;
-      xy.y = n - 1 - xy.y;
+pub fn rotate(n: i64, xy: &mut Point2D, rx: i64, ry: i64) {
+    if ry == 0 {
+        if rx == 1 {
+            xy.x = n - 1 - xy.x;
+            xy.y = n - 1 - xy.y;
+        }
+        core::mem::swap(&mut xy.x, &mut xy.y);
     }
-    core::mem::swap(&mut xy.x, &mut xy.y);
-  }
 }
 
-/// Low-level function for looking up a Tile_id or leaf directory inside a directory.
+/// Low-level function for looking up a tile_id or leaf directory inside a directory.
 pub fn find_tile(entries: &[Entry], tile_id: u64) -> Option<Entry> {
+    if entries.is_empty() { return None; }
     let mut m = 0;
     let mut n: isize = (entries.len() - 1).try_into().unwrap();
     while m <= n {
@@ -507,4 +520,228 @@ pub fn find_tile(entries: &[Entry], tile_id: u64) -> Option<Entry> {
     }
     
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloc::vec;
+
+    #[test]
+    fn test_tile() {
+        let tile = Tile { x: 0, y: 0, zoom: 0 };
+        assert_eq!(tile, Tile::new(0, 0, 0));
+
+        // from_id
+        let tile = Tile::from_id(0);
+        assert_eq!(tile, Tile { x: 0, y: 0, zoom: 0 });
+
+        // from_zoom_pos
+        let tile = Tile::from_zoom_pos(0, 0);
+        assert_eq!(tile, Tile { x: 0, y: 0, zoom: 0 });
+
+        // to_id
+        let tile = Tile { x: 0, y: 0, zoom: 0 };
+        let id = tile.to_id();
+        assert_eq!(id, 0);
+
+        let tile = Tile { x: 1_002, y: 6_969, zoom: 20 };
+        let id = tile.to_id();
+        assert_eq!(id, 366567509724);
+        assert_eq!(Tile::from_id(id), tile);
+    }
+
+    // Entry
+    #[test]
+    fn test_entry() {
+        let entry = Entry { tile_id: 1, offset: 2, length: 3, run_length: 4 };
+        assert_eq!(entry, Entry::new(1, 2, 3, 4));
+    }
+
+    // Directory
+    #[test]
+    fn test_directory() {
+        // new
+        let directory = Directory::new(vec![
+            Entry::new(1, 2, 3, 4),
+            Entry::new(5, 6, 7, 8),
+            Entry::new(9, 10, 11, 12),
+        ]);
+        assert_eq!(directory, Directory { entries: vec![
+            Entry::new(1, 2, 3, 4),
+            Entry::new(5, 6, 7, 8),
+            Entry::new(9, 10, 11, 12),
+        ] });
+
+        // serialize
+        let data = directory.serialize();
+        let mut buf = Buffer::from(data.as_slice());
+        assert_eq!(data, vec![3, 1, 4, 4, 4, 8, 12, 3, 7, 11, 3, 7, 11]);
+        // from_buffer
+        let d2 = Directory::from_buffer(&mut buf);
+        assert_eq!(d2, directory);
+
+        // is_empty
+        let directory = Directory::new(vec![]);
+        assert!(directory.is_empty());
+        let directory = Directory::new(vec![Entry::new(1, 2, 3, 4)]);
+        assert!(!directory.is_empty());
+
+        // len
+        let directory = Directory::new(vec![
+            Entry::new(1, 2, 3, 4),
+            Entry::new(5, 6, 7, 8),
+            Entry::new(9, 10, 11, 12),
+        ]);
+        assert_eq!(directory.len(), 3);
+
+        // first
+        let mut directory = Directory::new(vec![
+            Entry::new(1, 2, 3, 4),
+            Entry::new(5, 6, 7, 8),
+            Entry::new(9, 10, 11, 12),
+        ]);
+        assert_eq!(directory.first(), Some(&Entry::new(1, 2, 3, 4)));
+        assert_eq!(directory.first_mut(), Some(&mut Entry::new(1, 2, 3, 4)));
+
+        // last
+        let mut directory = Directory::new(vec![
+            Entry::new(1, 2, 3, 4),
+            Entry::new(5, 6, 7, 8),
+            Entry::new(9, 10, 11, 12),
+        ]);
+        assert_eq!(directory.last(), Some(&Entry::new(9, 10, 11, 12)));
+        assert_eq!(directory.last_mut(), Some(&mut Entry::new(9, 10, 11, 12)));
+
+        // get
+        let mut directory = Directory::new(vec![
+            Entry::new(0, 2, 3, 4),
+            Entry::new(1, 6, 7, 8),
+            Entry::new(9, 10, 11, 12),
+        ]);
+        assert_eq!(directory.get(0), Some(&Entry::new(0, 2, 3, 4)));
+        assert_eq!(directory.get_mut(1), Some(&mut Entry::new(1, 6, 7, 8)));
+
+        // set
+        let mut directory = Directory::new(vec![]);
+        directory.set(0, Entry::new(1, 2, 3, 4));
+        directory.insert(Entry::new(5, 6, 7, 8));
+    }
+
+    // Compression
+    #[test]
+    fn test_compression() {
+        // from_u8
+        assert_eq!(Compression::Unknown, 0_u8.into());
+        assert_eq!(Compression::None, 1_u8.into());
+        assert_eq!(Compression::Gzip, 2_u8.into());
+        assert_eq!(Compression::Brotli, 3_u8.into());
+        assert_eq!(Compression::Zstd, 4_u8.into());
+
+        // into_u8
+        assert_eq!(0_u8, u8::from(Compression::Unknown));
+        assert_eq!(1_u8, u8::from(Compression::None));
+        assert_eq!(2_u8, u8::from(Compression::Gzip));
+        assert_eq!(3_u8, u8::from(Compression::Brotli));
+        assert_eq!(4_u8, u8::from(Compression::Zstd));
+
+        // to_string
+        assert_eq!("unknown".to_string(), String::from(Compression::Unknown));
+        assert_eq!("none".to_string(), String::from(Compression::None));
+        assert_eq!("gzip".to_string(), String::from(Compression::Gzip));
+        assert_eq!("br".to_string(), String::from(Compression::Brotli));
+        assert_eq!("zstd".to_string(), String::from(Compression::Zstd));
+    } 
+
+    // TileType
+    #[test]
+    fn test_tile_type() {
+        // default
+        assert_eq!(TileType::Pbf, TileType::default());
+        // from_u8
+        assert_eq!(TileType::Unknown, 0_u8.into());
+        assert_eq!(TileType::Pbf, 1_u8.into());
+        assert_eq!(TileType::Png, 2_u8.into());
+        assert_eq!(TileType::Jpeg, 3_u8.into());
+        assert_eq!(TileType::Webp, 4_u8.into());
+        assert_eq!(TileType::Avif, 5_u8.into());
+        // into_u8
+        assert_eq!(0_u8, u8::from(TileType::Unknown));
+        assert_eq!(1_u8, u8::from(TileType::Pbf));
+        assert_eq!(2_u8, u8::from(TileType::Png));
+        assert_eq!(3_u8, u8::from(TileType::Jpeg));
+        assert_eq!(4_u8, u8::from(TileType::Webp));
+        assert_eq!(5_u8, u8::from(TileType::Avif));
+        // to_string
+        assert_eq!("unknown".to_string(), String::from(TileType::Unknown));
+        assert_eq!("pbf".to_string(), String::from(TileType::Pbf));
+        assert_eq!("png".to_string(), String::from(TileType::Png));
+        assert_eq!("jpeg".to_string(), String::from(TileType::Jpeg));
+        assert_eq!("webp".to_string(), String::from(TileType::Webp));
+        assert_eq!("avif".to_string(), String::from(TileType::Avif));
+    }
+
+    // Header, from_bytes, to_bytes
+    #[test]
+    fn test_header() {
+        let default_header = Header{ version: 3, ..Default::default() };
+        let mut buffer = default_header.to_bytes();
+        let bytes = buffer.take();
+        assert_eq!(bytes, vec![
+            80, 77, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        ]);
+        let from_bytes = Header::from_bytes(&mut Buffer::from(bytes.as_slice()));
+        assert_eq!(default_header, from_bytes);
+
+        // set a complex header:
+        let header = Header{
+            version: 3,
+            root_directory_offset: 1,
+            root_directory_length: 2,
+            metadata_offset: 3,
+            metadata_length: 4,
+            leaf_directory_offset: 5,
+            leaf_directory_length: 6,
+            data_offset: 7,
+            data_length: 8,
+            n_addressed_tiles: 9,
+            n_tile_entries: 10,
+            n_tile_contents: 11,
+            clustered: true,
+            internal_compression: Compression::Brotli,
+            tile_compression: Compression::Zstd,
+            tile_type: TileType::Jpeg,
+            min_zoom: 12,
+            max_zoom: 13,
+            min_longitude: -180.0,
+            min_latitude: -90.0,
+            max_longitude: 180.0,
+            max_latitude: 90.0,
+            center_zoom: 14,
+            center_longitude: 15.0,
+            center_latitude: 16.0,
+        };
+        let mut bytes = header.to_bytes();
+        let from_bytes = Header::from_bytes(&mut bytes);
+        assert_eq!(header, from_bytes);
+    }
+
+    // find_tile
+    #[test]
+    fn test_find_tile() {
+        let entries: Vec<Entry> = vec![
+            Entry{ tile_id: Tile::new(1, 0, 0).to_id(), run_length: 0, length: 0, offset: 0 },
+            Entry{ tile_id: Tile::new(1, 1, 0).to_id(), run_length: 0, length: 0, offset: 0 },
+            Entry{ tile_id: Tile::new(1, 0, 1).to_id(), run_length: 0, length: 0, offset: 0 },
+            Entry{ tile_id: Tile::new(1, 1, 1).to_id(), run_length: 0, length: 0, offset: 0 },
+        ];
+        let none = find_tile(&entries, 10);
+        assert_eq!(none, Some(Entry{ tile_id: 3, run_length: 0, length: 0, offset: 0 }));
+        let tile = find_tile(&entries, 4);
+        assert_eq!(tile, Some(Entry{ tile_id: 4, run_length: 0, length: 0, offset: 0 }));
+
+        let entries: Vec<Entry> = vec![];
+        let none = find_tile(&entries, 10);
+        assert_eq!(none, None);
+    }
 }

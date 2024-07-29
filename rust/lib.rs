@@ -25,22 +25,3 @@ pub use buffer::*;
 pub use cache::*;
 pub use pmtiles::*;
 pub use s2pmtiles::*;
-
-/// Add two usize numbers into one
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(1, 2);
-        let result2 = add(1, 1);
-
-        assert_eq!(result, 3);
-        assert_eq!(result2, 2);
-    }
-}

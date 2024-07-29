@@ -19,6 +19,7 @@ describe('dirCache', () => {
     dirCache.set(5, 6);
     dirCache.set(6, 7);
     dirCache.set(7, 8);
+    dirCache.set(4, 9);
 
     expect(dirCache.size).toBe(5);
     expect(dirCache.get(2)).toEqual(undefined as unknown as number);

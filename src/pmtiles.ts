@@ -161,11 +161,12 @@ export function zxyToTileID(zoom: number, x: number, y: number): number {
   let d = 0;
   const xy: [x: number, y: number] = [x, y];
   let s = n / 2;
-  while (s > 0) {
+  while (true) {
     rx = (xy[0] & s) > 0 ? 1 : 0;
     ry = (xy[1] & s) > 0 ? 1 : 0;
     d += s * s * ((3 * rx) ^ ry);
     rotate(s, xy, rx, ry);
+    if (s <= 1) break;
     s = s / 2;
   }
   return acc + d;

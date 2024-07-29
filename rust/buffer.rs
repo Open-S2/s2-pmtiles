@@ -22,8 +22,8 @@ const BIT_SHIFT: [u64; 10] = [0, 7, 14, 21, 28, 35, 42, 49, 56, 63];
 /// use s2_pmtiles::Buffer;
 /// use std::cell::RefCell; // or use core::cell::RefCell; if sticking with no_std
 ///
-/// let mut buf = vec![0x0A, 0x03, 0x74, 0x65, 0x73, 0x74];
-/// let mut pbf = Buffer::from_input(RefCell::new(buf));
+/// let mut vec = vec![0x0A, 0x03, 0x74, 0x65, 0x73, 0x74];
+/// let mut pbf = Buffer::from(vec.as_slice());
 /// ```
 #[derive(Default)]
 pub struct Buffer {
@@ -83,7 +83,9 @@ impl Buffer {
 
     /// set the current u8 at position
     pub fn set_u8_at(&mut self, pos: usize, value: u8) {
-        self.buf.borrow_mut()[pos] = value;
+        let mut buf = self.buf.borrow_mut();
+        if pos >= buf.len() { buf.resize(pos + 1, 0); }
+        buf[pos] = value;
     }
 
     /// return the current i32 under the buffer
@@ -115,6 +117,7 @@ impl Buffer {
     pub fn set_i32_at(&mut self, pos: usize, value: i32) {
         // Borrow the buffer and slice the next 4 bytes
         let mut buf = self.buf.borrow_mut();
+        if pos >= buf.len() { buf.resize(pos + 4, 0); }
         let bytes = &mut buf[pos..pos + 4];
         
         bytes.copy_from_slice(&value.to_le_bytes());
@@ -149,7 +152,77 @@ impl Buffer {
     pub fn set_u16_at(&mut self, pos: usize, value: u16) {
         // Borrow the buffer and slice the next 2 bytes
         let mut buf = self.buf.borrow_mut();
+        if pos >= buf.len() { buf.resize(pos + 2, 0); }
         let bytes = &mut buf[pos..pos + 2];
+        
+        bytes.copy_from_slice(&value.to_le_bytes());
+    }
+
+    /// return the current u32 under the buffer
+    pub fn get_u32(&mut self) -> u32 {
+        let value = self.get_u32_at(self.pos);
+        // Update the position
+        self.pos += 4;
+        
+        value
+    }
+
+    /// return the current u32 at position
+    pub fn get_u32_at(&mut self, pos: usize) -> u32 {
+        // Borrow the buffer and slice the next 4 bytes
+        let buf = self.buf.borrow();
+        let bytes = &buf[pos..pos + 4];
+        
+        u32::from_le_bytes(bytes.try_into().expect("slice with incorrect length"))
+    }
+
+
+    /// set the current u32 under the buffer
+    pub fn set_u32(&mut self, value: u32) {
+        self.set_u32_at(self.pos, value);
+        self.pos += 4;
+    }
+
+    /// set the current u32 at position
+    pub fn set_u32_at(&mut self, pos: usize, value: u32) {
+        // Borrow the buffer and slice the next 4 bytes
+        let mut buf = self.buf.borrow_mut();
+        if pos >= buf.len() { buf.resize(pos + 4, 0); }
+        let bytes = &mut buf[pos..pos + 4];
+        
+        bytes.copy_from_slice(&value.to_le_bytes());
+    }
+
+    /// return the current i32 under the buffer
+    pub fn get_i64(&mut self) -> i64 {
+        let value = self.get_i64_at(self.pos);
+        // Update the position
+        self.pos += 8;
+        
+        value
+    }
+
+    /// return the current i32 at position
+    pub fn get_i64_at(&mut self, pos: usize) -> i64 {
+        // Borrow the buffer and slice the next 8 bytes
+        let buf = self.buf.borrow();
+        let bytes = &buf[pos..pos + 8];
+        
+        i64::from_le_bytes(bytes.try_into().expect("slice with incorrect length"))
+    }
+
+    /// set the current i32 under the buffer
+    pub fn set_i64(&mut self, value: i64) {
+        self.set_i64_at(self.pos, value);
+        self.pos += 8;
+    }
+
+    /// set the current i32 at position
+    pub fn set_i64_at(&mut self, pos: usize, value: i64) {
+        // Borrow the buffer and slice the next 8 bytes
+        let mut buf = self.buf.borrow_mut();
+        if pos >= buf.len() { buf.resize(pos + 8, 0); }
+        let bytes = &mut buf[pos..pos + 8];
         
         bytes.copy_from_slice(&value.to_le_bytes());
     }
@@ -182,6 +255,7 @@ impl Buffer {
     pub fn set_u64_at(&mut self, pos: usize, value: u64) {
         // Borrow the buffer and slice the next 8 bytes
         let mut buf = self.buf.borrow_mut();
+        if pos >= buf.len() { buf.resize(pos + 8, 0); }
         let bytes = &mut buf[pos..pos + 8];
         
         bytes.copy_from_slice(&value.to_le_bytes());
@@ -189,12 +263,9 @@ impl Buffer {
 
     /// Decode a varint from the buffer at the current position.
     pub fn decode_varint(&mut self) -> u64 {
-        if self.pos >= self.len() {
-            unreachable!();
-        }
-
-        let mut val: u64 = 0;
         let buf = self.buf.borrow();
+        if self.pos >= buf.len() { unreachable!(); }
+        let mut val: u64 = 0;
 
         for (n, shift) in BIT_SHIFT.iter().enumerate().take(MAX_VARINT_LENGTH) {
             let b = buf[self.pos] as u64;
@@ -225,10 +296,13 @@ impl Buffer {
     }
 
     /// Write a u64 to the buffer.
-    pub fn write_varint(&mut self, val: u64) {
+    pub fn write_varint<T>(&mut self, val: T)
+    where
+        T: BitCast
+    {
         let mut buf = self.buf.borrow_mut();
-        let mut val = val;
-
+        let mut val = val.to_u64();
+        
         while val > 0x80 {
             buf.push((val & 0x7f) as u8 | 0x80);
             val >>= 7;
@@ -239,5 +313,134 @@ impl Buffer {
     /// When done writing to the buffer, call this function to take ownership
     pub fn take(&mut self) -> Vec<u8> {
         self.buf.take()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloc::vec;
+
+    #[test]
+    fn test_buffer() {
+        // new
+        let buf = Buffer::new();
+        let vec1: Vec<u8> = vec![];
+        assert_eq!(vec1, buf.buf.borrow().to_vec());
+        
+        // from
+        let vec = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let buf2: Buffer = Buffer::from(vec.as_slice());
+        assert_eq!(vec, buf2.buf.borrow().to_vec());
+    }
+
+    #[test]
+    fn test_set_pos() {
+        let mut buf = Buffer::new();
+        assert_eq!(0, buf.pos);
+        buf.set_pos(1);
+        assert_eq!(1, buf.pos);
+    }
+
+    // len
+    #[test]
+    fn test_len() {
+        let mut buf = Buffer::new();
+        assert_eq!(0, buf.len());
+        buf.set_u8(1);
+        assert_eq!(1, buf.len());
+    }
+
+    // is_empty
+    #[test]
+    fn test_is_empty() {
+        let mut buf = Buffer::new();
+        assert!(buf.is_empty());
+        buf.set_u8(1);
+        assert!(!buf.is_empty());
+    }
+
+    // get_u8, get_u8_at & set_u8
+    #[test]
+    fn test_get_u8() {
+        let mut buf = Buffer::new();
+        buf.set_u8(1);
+        buf.set_pos(0);
+        assert_eq!(1, buf.get_u8());
+        assert_eq!(1, buf.get_u8_at(0));
+    }
+
+    // get_u16, get_u16_at & set_u16
+    #[test]
+    fn test_get_u16() {
+        let mut buf = Buffer::new();
+        buf.set_u16(1);
+        buf.set_pos(0);
+        assert_eq!(1, buf.get_u16());
+        assert_eq!(1, buf.get_u16_at(0));
+    }
+
+    // get_i32, get_i32_at & set_i32
+    #[test]
+    fn test_get_i32() {
+        let mut buf = Buffer::new();
+        buf.set_i32(1);
+        buf.set_pos(0);
+        assert_eq!(1, buf.get_i32());
+        assert_eq!(1, buf.get_i32_at(0));
+    }
+
+    // get_u32, get_u32_at & set_u32
+    #[test]
+    fn test_get_u32() {
+        let mut buf = Buffer::new();
+        buf.set_u32(1);
+        buf.set_pos(0);
+        assert_eq!(1, buf.get_u32());
+        assert_eq!(1, buf.get_u32_at(0));
+    }
+
+    // get_i64, get_i64_at & set_i64
+    #[test]
+    fn test_get_i64() {
+        let mut buf = Buffer::new();
+        buf.set_i64(1);
+        buf.set_pos(0);
+        assert_eq!(1, buf.get_i64());
+        assert_eq!(1, buf.get_i64_at(0));
+    }
+
+    // get_u64, get_u64_at & set_u64
+    #[test]
+    fn test_get_u64() {
+        let mut buf = Buffer::new();
+        buf.set_u64(1);
+        buf.set_pos(0);
+        assert_eq!(1, buf.get_u64());
+        assert_eq!(1, buf.get_u64_at(0));
+    }
+
+    // decode_varint, read_varint, & write_varint
+    #[test]
+    fn test_decode_varint() {
+        let mut buf = Buffer::new();
+        buf.write_varint(1_u16);
+        buf.write_varint(19393930202_u64);
+        buf.set_pos(0);
+        assert_eq!(1, buf.read_varint::<u16>());
+        assert_eq!(19393930202, buf.read_varint::<u64>());
+        buf.set_pos(0);
+        assert_eq!(1, buf.decode_varint());
+        assert_eq!(19393930202, buf.decode_varint());
+    }
+
+    // take
+    #[test]
+    fn test_take() {
+        let mut buf = Buffer::new();
+        buf.set_u8(1);
+        buf.set_u8(2);
+        buf.set_u8(3);
+        assert_eq!(vec![1, 2, 3], buf.take());
     }
 }

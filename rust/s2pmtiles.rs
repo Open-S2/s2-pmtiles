@@ -7,7 +7,7 @@ use crate::buffer::Buffer;
 use crate::pmtiles::{Directory, Compression, TileType};
 
 /// Store entries for each Face
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct S2Entries {
     /// The entries for face 0
     pub face_0: Directory,
@@ -66,7 +66,7 @@ pub  const S2_HEADER_SIZE_BYTES: usize = 262;
 pub const S2_ROOT_SIZE: usize = 98_304;
 
 /// S2PMTiles v3 header storing basic archive-level information.
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
 pub struct  S2Header {
     /// True if this is an S2PMTiles v1, otherwise PMTiles v3
     pub is_s2: bool,
@@ -89,11 +89,11 @@ pub struct  S2Header {
     /// the length of the tile data
     pub data_length: u64,
     /// number of tiles addressed
-    pub n_addressed_tiles: Option<u64>,
+    pub n_addressed_tiles: u64,
     /// number of tile entries
-    pub n_tile_entries: Option<u64>,
+    pub n_tile_entries: u64,
     /// number of tile contents
-    pub n_tile_contents: Option<u64>,
+    pub n_tile_contents: u64,
     /// if the archive is clustered or not
     pub clustered: bool,
     /// if the archive is compressed or not
@@ -167,9 +167,9 @@ impl S2Header {
     pub fn from_bytes(buffer: &mut Buffer) -> S2Header {
         let ess = buffer.get_u8_at(0);
         let two = buffer.get_u8_at(1);
-        buffer.set_pos(7);
+        let is_s2 = ess == 83 && two == 50;
         S2Header {
-            is_s2: ess.to_ascii_lowercase() == b's' && two.to_ascii_lowercase() == b'2',
+            is_s2,
             version: buffer.get_u8_at(7),
             root_directory_offset: buffer.get_u64_at(8),
             root_directory_length: buffer.get_u64_at(16),
@@ -179,42 +179,42 @@ impl S2Header {
             leaf_directory_length: buffer.get_u64_at(48),
             data_offset: buffer.get_u64_at(56),
             data_length: buffer.get_u64_at(64),
-            n_addressed_tiles: Some(buffer.get_u64_at(72)),
-            n_tile_entries: Some(buffer.get_u64_at(80)),
-            n_tile_contents: Some(buffer.get_u64_at(88)),
+            n_addressed_tiles: buffer.get_u64_at(72),
+            n_tile_entries: buffer.get_u64_at(80),
+            n_tile_contents: buffer.get_u64_at(88),
             clustered: buffer.get_u8_at(96) == 1,
             internal_compression: Compression::from(buffer.get_u8_at(97)),
             tile_compression: Compression::from(buffer.get_u8_at(98)),
             tile_type: TileType::from(buffer.get_u8_at(99)),
             min_zoom: buffer.get_u8_at(100),
             max_zoom: buffer.get_u8_at(101),
-            min_longitude: (buffer.get_i32_at(102) as f32) / 10_000_000.0,
-            min_latitude: (buffer.get_i32_at(106) as f32) / 10_000_000.0,
-            max_longitude: (buffer.get_i32_at(110) as f32) / 10_000_000.0,
-            max_latitude: (buffer.get_i32_at(114) as f32) / 10_000_000.0,
-            center_zoom: buffer.get_u8_at(118),
-            center_longitude: (buffer.get_i32_at(119) as f32) / 10_000_000.0,
-            center_latitude: (buffer.get_i32_at(123) as f32) / 10_000_000.0,
-            root_directory_offset1: buffer.get_u64_at(102),
-            root_directory_length1: buffer.get_u64_at(110),
-            root_directory_length2: buffer.get_u64_at(118),
-            root_directory_offset2: buffer.get_u64_at(126),
-            root_directory_offset3: buffer.get_u64_at(134),
-            root_directory_length3: buffer.get_u64_at(142),
-            root_directory_offset4: buffer.get_u64_at(150),
-            root_directory_length4: buffer.get_u64_at(158),
-            root_directory_offset5: buffer.get_u64_at(166),
-            root_directory_length5: buffer.get_u64_at(174),
-            leaf_directory_offset1: buffer.get_u64_at(182),
-            leaf_directory_length1: buffer.get_u64_at(190),
-            leaf_directory_offset2: buffer.get_u64_at(198),
-            leaf_directory_length2: buffer.get_u64_at(206),
-            leaf_directory_offset3: buffer.get_u64_at(214),
-            leaf_directory_length3: buffer.get_u64_at(222),
-            leaf_directory_offset4: buffer.get_u64_at(230),
-            leaf_directory_length4: buffer.get_u64_at(238),
-            leaf_directory_offset5: buffer.get_u64_at(246),
-            leaf_directory_length5: buffer.get_u64_at(254),
+            min_longitude: if is_s2 { 0.0 } else { (buffer.get_i32_at(102) as f32) / 10_000_000.0 },
+            min_latitude: if is_s2 { 0.0 } else { (buffer.get_i32_at(106) as f32) / 10_000_000.0 },
+            max_longitude: if is_s2 { 0.0 } else { (buffer.get_i32_at(110) as f32) / 10_000_000.0 },
+            max_latitude: if is_s2 { 0.0 } else { (buffer.get_i32_at(114) as f32) / 10_000_000.0 },
+            center_zoom: if is_s2 { 0 } else { buffer.get_u8_at(118) },
+            center_longitude: if is_s2 { 0.0 } else { (buffer.get_i32_at(119) as f32) / 10_000_000.0 },
+            center_latitude: if is_s2 { 0.0 } else { (buffer.get_i32_at(123) as f32) / 10_000_000.0 },
+            root_directory_offset1: if is_s2 { buffer.get_u64_at(102) } else { 0 },
+            root_directory_length1: if is_s2 { buffer.get_u64_at(110) } else { 0 },
+            root_directory_length2: if is_s2 { buffer.get_u64_at(118) } else { 0 },
+            root_directory_offset2: if is_s2 { buffer.get_u64_at(126) } else { 0 },
+            root_directory_offset3: if is_s2 { buffer.get_u64_at(134) } else { 0 },
+            root_directory_length3: if is_s2 { buffer.get_u64_at(142) } else { 0 },
+            root_directory_offset4: if is_s2 { buffer.get_u64_at(150) } else { 0 },
+            root_directory_length4: if is_s2 { buffer.get_u64_at(158) } else { 0 },
+            root_directory_offset5: if is_s2 { buffer.get_u64_at(166) } else { 0 },
+            root_directory_length5: if is_s2 { buffer.get_u64_at(174) } else { 0 },
+            leaf_directory_offset1: if is_s2 { buffer.get_u64_at(182) } else { 0 },
+            leaf_directory_length1: if is_s2 { buffer.get_u64_at(190) } else { 0 },
+            leaf_directory_offset2: if is_s2 { buffer.get_u64_at(198) } else { 0 },
+            leaf_directory_length2: if is_s2 { buffer.get_u64_at(206) } else { 0 },
+            leaf_directory_offset3: if is_s2 { buffer.get_u64_at(214) } else { 0 },
+            leaf_directory_length3: if is_s2 { buffer.get_u64_at(222) } else { 0 },
+            leaf_directory_offset4: if is_s2 { buffer.get_u64_at(230) } else { 0 },
+            leaf_directory_length4: if is_s2 { buffer.get_u64_at(238) } else { 0 },
+            leaf_directory_offset5: if is_s2 { buffer.get_u64_at(246) } else { 0 },
+            leaf_directory_length5: if is_s2 { buffer.get_u64_at(254) } else { 0 },
         }
     }
 
@@ -223,8 +223,8 @@ impl S2Header {
         let mut buffer = Buffer::new();
 
         // default id
-        let s2_uint16 = ('S' as u16) << 8 | ('2' as u16);
-        buffer.set_u16_at(0, s2_uint16); // set S2
+        buffer.set_u8(b'S');
+        buffer.set_u8(b'2');
         // Version number at position 7
         buffer.set_u8_at(7, 1);
 
@@ -245,9 +245,9 @@ impl S2Header {
         buffer.set_u64_at(64, self.data_length);
 
         // Number of addressed tiles, tile entries, and tile contents at positions 72, 80, and 88
-        buffer.set_u64_at(72, self.n_addressed_tiles.unwrap_or(0));
-        buffer.set_u64_at(80, self.n_tile_entries.unwrap_or(0));
-        buffer.set_u64_at(88, self.n_tile_contents.unwrap_or(0));
+        buffer.set_u64_at(72, self.n_addressed_tiles);
+        buffer.set_u64_at(80, self.n_tile_entries);
+        buffer.set_u64_at(88, self.n_tile_contents);
 
         // Flags and types at positions 96 through 101
         buffer.set_u8_at(96, if self.clustered { 1 } else { 0 });
@@ -268,6 +268,18 @@ impl S2Header {
         buffer.set_u64_at(158, self.root_directory_length4);
         buffer.set_u64_at(166, self.root_directory_offset5);
         buffer.set_u64_at(174, self.root_directory_length5);
+
+        // set the remaining leaf directory offsets and lengths
+        buffer.set_u64_at(182, self.leaf_directory_offset1);
+        buffer.set_u64_at(190, self.leaf_directory_length1);
+        buffer.set_u64_at(198, self.leaf_directory_offset2);
+        buffer.set_u64_at(206, self.leaf_directory_length2);
+        buffer.set_u64_at(214, self.leaf_directory_offset3);
+        buffer.set_u64_at(222, self.leaf_directory_length3);
+        buffer.set_u64_at(230, self.leaf_directory_offset4);
+        buffer.set_u64_at(238, self.leaf_directory_length4);
+        buffer.set_u64_at(246, self.leaf_directory_offset5);
+        buffer.set_u64_at(254, self.leaf_directory_length5);
 
         buffer
     }
@@ -294,5 +306,143 @@ impl S2Header {
             Face::Face4 => self.root_directory_length4,
             Face::Face5 => self.root_directory_length5,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Entry;
+
+    #[test]
+    fn test_s2_entries() {
+        let mut s2entries = S2Entries{
+            face_0: Directory{ entries: vec![Entry::new(0, 0, 0, 0), Entry::new(1, 1, 1, 1)] },
+            face_1: Directory::default(),
+            face_2: Directory::default(),
+            face_3: Directory::default(),
+            face_4: Directory::default(),
+            face_5: Directory::default(),
+        };
+
+        // get
+        assert_eq!(s2entries.get(Face::Face0), &s2entries.face_0);
+        assert_eq!(s2entries.get(Face::Face1), &s2entries.face_1);
+        assert_eq!(s2entries.get(Face::Face2), &s2entries.face_2);
+        assert_eq!(s2entries.get(Face::Face3), &s2entries.face_3);
+        assert_eq!(s2entries.get(Face::Face4), &s2entries.face_4);
+        assert_eq!(s2entries.get(Face::Face5), &s2entries.face_5);
+
+        // get mut
+        let dir0 = s2entries.get_mut(Face::Face0).clone();
+        assert_eq!(dir0, s2entries.face_0.clone());
+        let dir1 = s2entries.get_mut(Face::Face1).clone();
+        assert_eq!(dir1, s2entries.face_1.clone());
+        let dir2 = s2entries.get_mut(Face::Face2).clone();
+        assert_eq!(dir2, s2entries.face_2.clone());
+        let dir3 = s2entries.get_mut(Face::Face3).clone();
+        assert_eq!(dir3, s2entries.face_3.clone());
+        let dir4 = s2entries.get_mut(Face::Face4).clone();
+        assert_eq!(dir4, s2entries.face_4.clone());
+        let dir5 = s2entries.get_mut(Face::Face5).clone();
+        assert_eq!(dir5, s2entries.face_5.clone());
+
+        // set
+        s2entries.set_dir(Face::Face0, Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] });
+        s2entries.set_dir(Face::Face1, Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] });
+        s2entries.set_dir(Face::Face2, Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] });
+        s2entries.set_dir(Face::Face3, Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] });
+        s2entries.set_dir(Face::Face4, Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] });
+        s2entries.set_dir(Face::Face5, Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] });
+
+        assert_eq!(s2entries, S2Entries{
+            face_0: Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] },
+            face_1: Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] },
+            face_2: Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] },
+            face_3: Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] },
+            face_4: Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] },
+            face_5: Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] },
+        });
+    }
+
+    #[test]
+    fn test_header() {
+        let default_header = S2Header{ is_s2: true, version: 1, ..Default::default() };
+        let mut buffer = default_header.to_bytes();
+        let bytes = buffer.take();
+        assert_eq!(bytes, vec![
+            83, 50, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        ]);
+        let from_bytes = S2Header::from_bytes(&mut Buffer::from(bytes.as_slice()));
+        assert_eq!(default_header, from_bytes);
+
+        // set a complex header:
+        let header = S2Header{
+            is_s2: true,
+            version: 1,
+            root_directory_offset: 1,
+            root_directory_length: 2,
+            metadata_offset: 3,
+            metadata_length: 4,
+            leaf_directory_offset: 5,
+            leaf_directory_length: 6,
+            data_offset: 7,
+            data_length: 8,
+            n_addressed_tiles: 9,
+            n_tile_entries: 10,
+            n_tile_contents: 11,
+            clustered: true,
+            internal_compression: Compression::Brotli,
+            tile_compression: Compression::Zstd,
+            tile_type: TileType::Jpeg,
+            min_zoom: 12,
+            max_zoom: 13,
+            min_longitude: 0.0,
+            min_latitude: 0.0,
+            max_longitude: 0.0,
+            max_latitude: 0.0,
+            center_zoom: 0,
+            center_longitude: 0.0,
+            center_latitude: 0.0,
+            root_directory_offset1: 17,
+            root_directory_offset2: 18,
+            root_directory_offset3: 19,
+            root_directory_offset4: 20,
+            root_directory_offset5: 21,
+            root_directory_length1: 22,
+            root_directory_length2: 23,
+            root_directory_length3: 24,
+            root_directory_length4: 25,
+            root_directory_length5: 26,
+            leaf_directory_offset1: 27,
+            leaf_directory_offset2: 28,
+            leaf_directory_offset3: 29,
+            leaf_directory_offset4: 30,
+            leaf_directory_offset5: 31,
+            leaf_directory_length1: 32,
+            leaf_directory_length2: 33,
+            leaf_directory_length3: 34,
+            leaf_directory_length4: 35,
+            leaf_directory_length5: 36,
+        };
+        let mut bytes = header.to_bytes();
+        let from_bytes = S2Header::from_bytes(&mut bytes);
+        assert_eq!(header, from_bytes);
+
+        // get_root_offset
+        assert_eq!(header.get_root_offset(0.into()), 1);
+        assert_eq!(header.get_root_offset(1.into()), 17);
+        assert_eq!(header.get_root_offset(2.into()), 18);
+        assert_eq!(header.get_root_offset(3.into()), 19);
+        assert_eq!(header.get_root_offset(4.into()), 20);
+        assert_eq!(header.get_root_offset(5.into()), 21);
+
+        // get_root_length
+        assert_eq!(header.get_root_length(0.into()), 2);
+        assert_eq!(header.get_root_length(1.into()), 22);
+        assert_eq!(header.get_root_length(2.into()), 23);
+        assert_eq!(header.get_root_length(3.into()), 24);
+        assert_eq!(header.get_root_length(4.into()), 25);
+        assert_eq!(header.get_root_length(5.into()), 26);
     }
 }

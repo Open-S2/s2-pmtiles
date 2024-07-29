@@ -104,3 +104,163 @@ impl BitCast for usize {
         value as usize
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bitcast_u64() {
+        // from
+        assert_eq!(u64::from_u64(0), 0);
+        assert_eq!(u64::from_u64(1), 1);
+        assert_eq!(u64::from_u64(0xffffffff), 0xffffffff);
+
+        // to
+        assert_eq!(u64::to_u64(&0), 0);
+        assert_eq!(u64::to_u64(&1), 1);
+        assert_eq!(u64::to_u64(&0xffffffff), 0xffffffff);
+    }
+
+    #[test]
+    fn test_bitcast_i64() {
+        // from
+        assert_eq!(i64::from_u64(0), 0);
+        assert_eq!(i64::from_u64(1), 1);
+        assert_eq!(i64::from_u64(18446744073709551615), -1);
+
+        // to
+        assert_eq!(i64::to_u64(&0), 0);
+        assert_eq!(i64::to_u64(&1), 1);
+        assert_eq!(i64::to_u64(&-1), 18446744073709551615);
+    }
+
+    #[test]
+    fn test_bitcast_f64() {
+        // from
+        assert_eq!(f64::from_u64(0), 0.0);
+        assert_eq!(f64::from_u64(4607182418800017408), 1.0);
+        assert_eq!(f64::from_u64(13830554455654793216), -1.0);
+
+        // to
+        assert_eq!(f64::to_u64(&0.0), 0);
+        assert_eq!(f64::to_u64(&1.0), 4607182418800017408);
+        assert_eq!(f64::to_u64(&-1.0), 13830554455654793216);
+    }
+
+    #[test]
+    fn test_bitcast_u32() {
+        // from
+        assert_eq!(u32::from_u64(0), 0);
+        assert_eq!(u32::from_u64(1), 1);
+        assert_eq!(u32::from_u64(0xffffffff), 0xffffffff);
+
+        // to
+        assert_eq!(u32::to_u64(&0), 0);
+        assert_eq!(u32::to_u64(&1), 1);
+        assert_eq!(u32::to_u64(&0xffffffff), 0xffffffff);
+    }
+
+    #[test]
+    fn test_bitcast_i32() {
+        // from
+        assert_eq!(i32::from_u64(0), 0);
+        assert_eq!(i32::from_u64(1), 1);
+        assert_eq!(i32::from_u64(4294967295), -1);
+
+        // to
+        assert_eq!(i32::to_u64(&0), 0);
+        assert_eq!(i32::to_u64(&1), 1);
+        assert_eq!(i32::to_u64(&-1), 4294967295);
+    }
+
+    #[test]
+    fn test_bitcast_f32() {
+        // from
+        assert_eq!(f32::from_u64(0), 0.0);
+        assert_eq!(f32::from_u64(1065353216), 1.0);
+        assert_eq!(f32::from_u64(3212836864), -1.0);
+
+        // to
+        assert_eq!(f32::to_u64(&0.0), 0);
+        assert_eq!(f32::to_u64(&1.0), 1065353216);
+        assert_eq!(f32::to_u64(&-1.0), 3212836864);
+    }
+
+    #[test]
+    fn test_bitcast_u16() {
+        // from
+        assert_eq!(u16::from_u64(0), 0);
+        assert_eq!(u16::from_u64(1), 1);
+        assert_eq!(u16::from_u64(0xffff), 0xffff);
+
+        // to
+        assert_eq!(u16::to_u64(&0), 0);
+        assert_eq!(u16::to_u64(&1), 1);
+        assert_eq!(u16::to_u64(&0xffff), 0xffff);
+    }
+
+    #[test]
+    fn test_bitcast_i16() {
+        // from
+        assert_eq!(i16::from_u64(0), 0);
+        assert_eq!(i16::from_u64(1), 1);
+        assert_eq!(i16::from_u64(65535), -1);
+
+        // to
+        assert_eq!(i16::to_u64(&0), 0);
+        assert_eq!(i16::to_u64(&1), 1);
+        assert_eq!(i16::to_u64(&-1), 65535);
+    }
+
+    #[test]
+    fn test_bitcast_u8() {
+        // from
+        assert_eq!(u8::from_u64(0), 0);
+        assert_eq!(u8::from_u64(1), 1);
+        assert_eq!(u8::from_u64(255), 255);
+
+        // to
+        assert_eq!(u8::to_u64(&0), 0);
+        assert_eq!(u8::to_u64(&1), 1);
+        assert_eq!(u8::to_u64(&255), 255);
+    }
+
+    #[test]
+    fn test_bitcast_i8() {
+        // from
+        assert_eq!(i8::from_u64(0), 0);
+        assert_eq!(i8::from_u64(1), 1);
+        assert_eq!(i8::from_u64(255), -1);
+
+        // to
+        assert_eq!(i8::to_u64(&0), 0);
+        assert_eq!(i8::to_u64(&1), 1);
+        assert_eq!(i8::to_u64(&-1), 255);
+    }
+
+    #[test]
+    fn test_bitcast_bool() {
+        // from
+        assert!(!bool::from_u64(0));
+        assert!(bool::from_u64(1));
+        assert!(bool::from_u64(2));
+
+        // to
+        assert_eq!(bool::to_u64(&false), 0);
+        assert_eq!(bool::to_u64(&true), 1);
+    }
+
+    #[test]
+    fn test_bitcast_usize() {
+        // from
+        assert_eq!(usize::from_u64(0), 0);
+        assert_eq!(usize::from_u64(1), 1);
+        assert_eq!(usize::from_u64(4294967295), 4294967295);
+
+        // to
+        assert_eq!(usize::to_u64(&0), 0);
+        assert_eq!(usize::to_u64(&1), 1);
+        assert_eq!(usize::to_u64(&4294967295), 4294967295);
+    }
+}

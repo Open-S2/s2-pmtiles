@@ -35,6 +35,7 @@ describe('zxyToTileID & tileIDToZxy', () => {
     expect(zxyToTileID(2, 0, 1)).toBe(8);
     expect(zxyToTileID(2, 1, 0)).toBe(6);
     expect(zxyToTileID(2, 1, 1)).toBe(7);
+    expect(zxyToTileID(20, 1_002, 6_969)).toBe(366567509724);
     expect(() => zxyToTileID(30, 0, 0)).toThrowError(
       'Tile zoom level exceeds max safe number limit (26)',
     );
@@ -50,6 +51,7 @@ describe('zxyToTileID & tileIDToZxy', () => {
     expect(tileIDToZxy(8)).toEqual([2, 0, 1]);
     expect(tileIDToZxy(6)).toEqual([2, 1, 0]);
     expect(tileIDToZxy(7)).toEqual([2, 1, 1]);
+    expect(tileIDToZxy(366567509724)).toEqual([20, 1_002, 6_969]);
     expect(() => tileIDToZxy(8501199875890165)).toThrowError(
       'Tile zoom level exceeds max safe number limit (26)',
     );
@@ -124,3 +126,6 @@ test('serializeDir, deserializeDir, & findTile', () => {
 
   expect(findTile(entries, 11)).toBeNull();
 });
+
+// let tile = Tile { x: 1_002, y: 6_969, zoom: 20 };
+//         let id = tile.to_id();
