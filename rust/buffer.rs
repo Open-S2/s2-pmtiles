@@ -303,8 +303,8 @@ impl Buffer {
         let mut buf = self.buf.borrow_mut();
         let mut val = val.to_u64();
         
-        while val > 0x80 {
-            buf.push((val & 0x7f) as u8 | 0x80);
+        while val >= 0x80 {
+            buf.push(((val & 0x7f) | 0x80) as u8);
             val >>= 7;
         }
         buf.push(val as u8);

@@ -1,5 +1,12 @@
 import { createHash } from 'node:crypto';
-import { Compression, headerToBytes, serializeDir, tileIDToZxy, zxyToTileID } from './pmtiles';
+import {
+  Compression,
+  ROOT_SIZE,
+  headerToBytes,
+  serializeDir,
+  tileIDToZxy,
+  zxyToTileID,
+} from './pmtiles';
 import { S2_HEADER_SIZE_BYTES, S2_ROOT_SIZE, s2HeaderToBytes } from './s2pmtiles';
 import { appendFile, open } from 'node:fs/promises';
 
@@ -75,9 +82,9 @@ export class PMTilesWriter {
     const hsh = hashUint8Array(data);
     let offset = this.#hashToOffset.get(hsh);
     if (offset !== undefined) {
-      const last = tileEntries.at(-1) as Entry;
-      if (tileID == last.tileID + last.runLength && last.offset == offset) {
-        tileEntries[-1].runLength++;
+      const last = tileEntries.at(-1);
+      if (last !== undefined && tileID == last.tileID + last.runLength && last.offset == offset) {
+        last.runLength++;
       } else {
         tileEntries.push({ tileID, offset, length, runLength: 1 });
       }
@@ -107,6 +114,8 @@ export class PMTilesWriter {
    */
   async #commit(metadata: Metadata): Promise<void> {
     const tileEntries = this.#tileEntries;
+    // keep tile entries sorted
+    tileEntries.sort((a, b) => a.tileID - b.tileID);
     // build metadata
     const metaBuffer = Buffer.from(JSON.stringify(metadata));
     const metauint8 = new Uint8Array(
@@ -118,7 +127,7 @@ export class PMTilesWriter {
     // optimize directories
     const { rootBytes, leavesBytes } = optimizeDirectories(
       tileEntries,
-      S2_ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
+      ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
     );
 
     // build header data
@@ -176,6 +185,13 @@ export class PMTilesWriter {
     const tileEntries3 = this.#s2tileEntries[3];
     const tileEntries4 = this.#s2tileEntries[4];
     const tileEntries5 = this.#s2tileEntries[5];
+    // keep tile entries sorted
+    tileEntries.sort((a, b) => a.tileID - b.tileID);
+    tileEntries1.sort((a, b) => a.tileID - b.tileID);
+    tileEntries2.sort((a, b) => a.tileID - b.tileID);
+    tileEntries3.sort((a, b) => a.tileID - b.tileID);
+    tileEntries4.sort((a, b) => a.tileID - b.tileID);
+    tileEntries5.sort((a, b) => a.tileID - b.tileID);
     // build metadata
     const metaBuffer = Buffer.from(JSON.stringify(metadata));
     const metauint8 = new Uint8Array(
@@ -187,27 +203,27 @@ export class PMTilesWriter {
     // optimize directories
     const { rootBytes, leavesBytes } = optimizeDirectories(
       tileEntries,
-      S2_ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
+      ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
     );
     const { rootBytes: rootBytes1, leavesBytes: leavesBytes1 } = optimizeDirectories(
       tileEntries1,
-      S2_ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
+      ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
     );
     const { rootBytes: rootBytes2, leavesBytes: leavesBytes2 } = optimizeDirectories(
       tileEntries2,
-      S2_ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
+      ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
     );
     const { rootBytes: rootBytes3, leavesBytes: leavesBytes3 } = optimizeDirectories(
       tileEntries3,
-      S2_ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
+      ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
     );
     const { rootBytes: rootBytes4, leavesBytes: leavesBytes4 } = optimizeDirectories(
       tileEntries4,
-      S2_ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
+      ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
     );
     const { rootBytes: rootBytes5, leavesBytes: leavesBytes5 } = optimizeDirectories(
       tileEntries5,
-      S2_ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
+      ROOT_SIZE - S2_HEADER_SIZE_BYTES - metauint8.byteLength,
     );
 
     // build header data
@@ -251,10 +267,6 @@ export class PMTilesWriter {
     const leafDirectoryLength5 = leavesBytes5.byteLength;
     this.#offset += leafDirectoryLength5;
     appendFile(this.file, leavesBytes5);
-    // to make writing faster
-    const minZoom = tileIDToZxy((tileEntries.at(0) as Entry).tileID)[0];
-    const maxZoom = tileIDToZxy((tileEntries.at(-1) as Entry).tileID)[0];
-
     // build header
     const header: S2Header = {
       specVersion: 3,
@@ -293,8 +305,8 @@ export class PMTilesWriter {
       internalCompression: Compression.None,
       tileCompression: this.compression,
       tileType: this.type,
-      minZoom,
-      maxZoom,
+      minZoom: 0,
+      maxZoom: 0,
     };
     const serialzedHeader = s2HeaderToBytes(header);
 

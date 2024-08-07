@@ -50,13 +50,13 @@ describe('File Reader', async () => {
       rootDirectoryLength: 25,
       rootDirectoryOffset: 127,
       specVersion: 3,
-      tileCompression: 2,
+      tileCompression: Compression.Gzip,
       tileDataLength: 69,
       tileDataOffset: 399,
       tileType: 1,
     });
     // metadata
-    expect(testFixture1.getMetadata() as unknown as MetaExternal).toEqual({
+    expect((await testFixture1.getMetadata()) as unknown as MetaExternal).toEqual({
       name: 'test_fixture_1.pmtiles',
       description: 'test_fixture_1.pmtiles',
       version: '2',
@@ -117,13 +117,13 @@ describe('File Reader', async () => {
       rootDirectoryLength: 25,
       rootDirectoryOffset: 127,
       specVersion: 3,
-      tileCompression: 2,
+      tileCompression: Compression.Gzip,
       tileDataLength: 67,
       tileDataOffset: 399,
       tileType: 1,
     });
     // metadata
-    expect(testFixture2.getMetadata() as unknown as MetaExternal).toEqual({
+    expect((await testFixture2.getMetadata()) as unknown as MetaExternal).toEqual({
       name: 'test_fixture_2.pmtiles',
       description: 'test_fixture_2.pmtiles',
       version: '2',

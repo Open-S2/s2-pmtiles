@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use core::cmp::Ordering;
 use alloc::string::String;
 
-use crate::buffer::Buffer;
+use crate::{bit_cast::BitCast, buffer::Buffer};
 
 /// zoom values for each zoom level. Supports up to 27 zooms
 pub const TZ_VALUES: [u64; 27] = [
@@ -162,9 +162,10 @@ impl Directory {
 
     /// Serialize the directory into a buffer
     pub fn serialize(&self) -> Vec<u8> {
+        // then write the entries
         let mut buffer = Buffer::new();
 
-        buffer.write_varint(self.entries.len());
+        buffer.write_varint(self.entries.len().to_u64());
 
         let mut last_id = 0;
         for e in &self.entries {
@@ -174,7 +175,13 @@ impl Directory {
 
         for e in &self.entries { buffer.write_varint(e.run_length); }
         for e in &self.entries { buffer.write_varint(e.length); }
-        for e in &self.entries { buffer.write_varint(e.offset + 1); }
+        for i in 0..self.entries.len() {
+            if i > 0 && self.entries[i].offset == self.entries[i - 1].offset + self.entries[i - 1].length as u64 {
+                buffer.write_varint(0);
+            } else {
+                buffer.write_varint(self.entries[i].offset + 1);
+            }
+        }
 
         buffer.take()
     }
@@ -500,8 +507,7 @@ pub fn find_tile(entries: &[Entry], tile_id: u64) -> Option<Entry> {
     let mut n: isize = (entries.len() - 1).try_into().unwrap();
     while m <= n {
         let k = (n + m) >> 1;
-        let cmp = tile_id - entries[k as usize].tile_id;
-        match cmp.cmp(&0) {
+        match tile_id.cmp(&entries[k as usize].tile_id) {
             Ordering::Greater => m = k + 1,
             Ordering::Less => n = k - 1,
             Ordering::Equal => return Some(entries[k as usize]),

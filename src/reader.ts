@@ -39,7 +39,7 @@ export class PMTilesReader {
    * @returns - the header of the archive along with the root directory,
    * including information such as tile type, min/max zoom, bounds, and summary statistics.
    */
-  async #getHeader(): Promise<Header> {
+  async #getHeader(): Promise<Header | S2Header> {
     if (this.#header !== undefined) return this.#header;
     const data = await this.#getRange(0, S2_ROOT_SIZE);
     const headerData = data.slice(0, S2_HEADER_SIZE_BYTES);
@@ -99,7 +99,8 @@ export class PMTilesReader {
   }
 
   /** @returns - the metadata of the archive */
-  getMetadata(): Metadata {
+  async getMetadata(): Promise<Metadata> {
+    await this.#getHeader();
     return this.#metadata;
   }
 
@@ -139,11 +140,11 @@ export class PMTilesReader {
   ): Promise<Uint8Array | undefined> {
     const header = await this.#getHeader();
     const tileID = zxyToTileID(zoom, x, y);
-    const { minZoom, maxZoom, rootDirectoryOffset, rootDirectoryLength, tileDataOffset } = header;
-    if (zoom < minZoom || zoom > maxZoom) return undefined;
+    const { tileDataOffset } = header;
+    // DO NOT USE: I don't bother implementing this part of the spec
+    // if (zoom < minZoom || zoom > maxZoom) return undefined;
 
-    let dO = rootDirectoryOffset;
-    let dL = rootDirectoryLength;
+    let [dO, dL] = this.#getRootDir(face, header);
 
     for (let depth = 0; depth <= 3; depth++) {
       const directory = await this.#getDirectory(dO, dL, face);
@@ -159,6 +160,20 @@ export class PMTilesReader {
       } else return undefined;
     }
     throw Error('Maximum directory depth exceeded');
+  }
+
+  /**
+   * @param face - the Open S2 projection face
+   * @param header - the header of the archive
+   * @returns - the offset and length of the root directory for the correct face
+   */
+  #getRootDir(face: number, header: Header | S2Header): [number, number] {
+    const { rootDirectoryOffset, rootDirectoryLength } = header;
+    if (face <= 0) return [rootDirectoryOffset, rootDirectoryLength];
+    const s2header = header as S2Header;
+    const rootOffset = `rootDirectoryOffset${face}` as keyof S2Header;
+    const rootLength = `rootDirectoryLength${face}` as keyof S2Header;
+    return [s2header[rootOffset] as number, s2header[rootLength] as number];
   }
 
   /**
