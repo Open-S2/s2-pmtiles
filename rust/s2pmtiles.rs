@@ -4,7 +4,7 @@ extern crate alloc;
 use s2_tilejson::Face;
 
 use crate::buffer::Buffer;
-use crate::pmtiles::{Directory, Compression, TileType};
+use crate::pmtiles::{Compression, Directory, TileType};
 
 /// Store entries for each Face
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -61,13 +61,13 @@ impl S2Entries {
 }
 
 /// The S2PMTiles v1 header size in bytes
-pub  const S2_HEADER_SIZE_BYTES: usize = 262;
+pub const S2_HEADER_SIZE_BYTES: usize = 262;
 /// The S2PMTiles v1 root directory size in bytes
 pub const S2_ROOT_SIZE: usize = 98_304;
 
 /// S2PMTiles v3 header storing basic archive-level information.
 #[derive(Debug, Copy, Clone, Default, PartialEq)]
-pub struct  S2Header {
+pub struct S2Header {
     /// True if this is an S2PMTiles v1, otherwise PMTiles v3
     pub is_s2: bool,
     /// versioning used for the s2-pmtiles spec
@@ -188,13 +188,37 @@ impl S2Header {
             tile_type: TileType::from(buffer.get_u8_at(99)),
             min_zoom: buffer.get_u8_at(100),
             max_zoom: buffer.get_u8_at(101),
-            min_longitude: if is_s2 { 0.0 } else { (buffer.get_i32_at(102) as f32) / 10_000_000.0 },
-            min_latitude: if is_s2 { 0.0 } else { (buffer.get_i32_at(106) as f32) / 10_000_000.0 },
-            max_longitude: if is_s2 { 0.0 } else { (buffer.get_i32_at(110) as f32) / 10_000_000.0 },
-            max_latitude: if is_s2 { 0.0 } else { (buffer.get_i32_at(114) as f32) / 10_000_000.0 },
+            min_longitude: if is_s2 {
+                0.0
+            } else {
+                (buffer.get_i32_at(102) as f32) / 10_000_000.0
+            },
+            min_latitude: if is_s2 {
+                0.0
+            } else {
+                (buffer.get_i32_at(106) as f32) / 10_000_000.0
+            },
+            max_longitude: if is_s2 {
+                0.0
+            } else {
+                (buffer.get_i32_at(110) as f32) / 10_000_000.0
+            },
+            max_latitude: if is_s2 {
+                0.0
+            } else {
+                (buffer.get_i32_at(114) as f32) / 10_000_000.0
+            },
             center_zoom: if is_s2 { 0 } else { buffer.get_u8_at(118) },
-            center_longitude: if is_s2 { 0.0 } else { (buffer.get_i32_at(119) as f32) / 10_000_000.0 },
-            center_latitude: if is_s2 { 0.0 } else { (buffer.get_i32_at(123) as f32) / 10_000_000.0 },
+            center_longitude: if is_s2 {
+                0.0
+            } else {
+                (buffer.get_i32_at(119) as f32) / 10_000_000.0
+            },
+            center_latitude: if is_s2 {
+                0.0
+            } else {
+                (buffer.get_i32_at(123) as f32) / 10_000_000.0
+            },
             root_directory_offset1: if is_s2 { buffer.get_u64_at(102) } else { 0 },
             root_directory_length1: if is_s2 { buffer.get_u64_at(110) } else { 0 },
             root_directory_length2: if is_s2 { buffer.get_u64_at(118) } else { 0 },
@@ -316,8 +340,10 @@ mod tests {
 
     #[test]
     fn test_s2_entries() {
-        let mut s2entries = S2Entries{
-            face_0: Directory{ entries: vec![Entry::new(0, 0, 0, 0), Entry::new(1, 1, 1, 1)] },
+        let mut s2entries = S2Entries {
+            face_0: Directory {
+                entries: vec![Entry::new(0, 0, 0, 0), Entry::new(1, 1, 1, 1)],
+            },
             face_1: Directory::default(),
             face_2: Directory::default(),
             face_3: Directory::default(),
@@ -348,36 +374,97 @@ mod tests {
         assert_eq!(dir5, s2entries.face_5.clone());
 
         // set
-        s2entries.set_dir(Face::Face0, Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] });
-        s2entries.set_dir(Face::Face1, Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] });
-        s2entries.set_dir(Face::Face2, Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] });
-        s2entries.set_dir(Face::Face3, Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] });
-        s2entries.set_dir(Face::Face4, Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] });
-        s2entries.set_dir(Face::Face5, Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] });
+        s2entries.set_dir(
+            Face::Face0,
+            Directory {
+                entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)],
+            },
+        );
+        s2entries.set_dir(
+            Face::Face1,
+            Directory {
+                entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)],
+            },
+        );
+        s2entries.set_dir(
+            Face::Face2,
+            Directory {
+                entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)],
+            },
+        );
+        s2entries.set_dir(
+            Face::Face3,
+            Directory {
+                entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)],
+            },
+        );
+        s2entries.set_dir(
+            Face::Face4,
+            Directory {
+                entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)],
+            },
+        );
+        s2entries.set_dir(
+            Face::Face5,
+            Directory {
+                entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)],
+            },
+        );
 
-        assert_eq!(s2entries, S2Entries{
-            face_0: Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] },
-            face_1: Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] },
-            face_2: Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] },
-            face_3: Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] },
-            face_4: Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] },
-            face_5: Directory{ entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)] },
-        });
+        assert_eq!(
+            s2entries,
+            S2Entries {
+                face_0: Directory {
+                    entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)]
+                },
+                face_1: Directory {
+                    entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)]
+                },
+                face_2: Directory {
+                    entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)]
+                },
+                face_3: Directory {
+                    entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)]
+                },
+                face_4: Directory {
+                    entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)]
+                },
+                face_5: Directory {
+                    entries: vec![Entry::new(0, 0, 3, 3), Entry::new(9, 8, 7, 6)]
+                },
+            }
+        );
     }
 
     #[test]
     fn test_header() {
-        let default_header = S2Header{ is_s2: true, version: 1, ..Default::default() };
+        let default_header = S2Header {
+            is_s2: true,
+            version: 1,
+            ..Default::default()
+        };
         let mut buffer = default_header.to_bytes();
         let bytes = buffer.take();
-        assert_eq!(bytes, vec![
-            83, 50, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-        ]);
+        assert_eq!(
+            bytes,
+            vec![
+                83, 50, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            ]
+        );
         let from_bytes = S2Header::from_bytes(&mut Buffer::from(bytes.as_slice()));
         assert_eq!(default_header, from_bytes);
 
         // set a complex header:
-        let header = S2Header{
+        let header = S2Header {
             is_s2: true,
             version: 1,
             root_directory_offset: 1,

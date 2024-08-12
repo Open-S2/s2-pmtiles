@@ -6,13 +6,13 @@ use std::fs::{File, OpenOptions};
 #[cfg(feature = "std")]
 use std::io::{self, Seek, SeekFrom, Write};
 
-use alloc::vec::Vec;
 use crate::{
-    Compression, Directory, Entry, Header, S2Header, S2Entries, Tile, TileType,
-    S2_HEADER_SIZE_BYTES, S2_ROOT_SIZE, ROOT_SIZE
+    Compression, Directory, Entry, Header, S2Entries, S2Header, Tile, TileType, ROOT_SIZE,
+    S2_HEADER_SIZE_BYTES, S2_ROOT_SIZE,
 };
+use alloc::vec::Vec;
 use s2_tilejson::{Face, Metadata};
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 /// The result of an optimized directory computation
 #[derive(Debug, Clone, Default)]
@@ -26,14 +26,17 @@ pub struct OptimizedDirectory {
 }
 impl OptimizedDirectory {
     /// Optimize the directory for storage
-    pub fn optimize_directories(directory: &mut Directory, target_root_length: usize) -> OptimizedDirectory {
+    pub fn optimize_directories(
+        directory: &mut Directory,
+        target_root_length: usize,
+    ) -> OptimizedDirectory {
         directory.entries.sort_by(|a, b| a.tile_id.cmp(&b.tile_id));
         let test_bytes = directory.serialize();
         if test_bytes.len() < target_root_length {
             OptimizedDirectory {
                 root_bytes: test_bytes,
                 leaves_bytes: Vec::new(),
-                num_leaves: 0
+                num_leaves: 0,
             }
         } else {
             let mut leaf_size = 4096;
@@ -58,7 +61,9 @@ impl OptimizedDirectory {
         while i < entries.len() {
             num_leaves += 1;
             let mut end = i + leaf_size;
-            if i + leaf_size > entries.len() { end = entries.len(); }
+            if i + leaf_size > entries.len() {
+                end = entries.len();
+            }
             let new_dir_slice = Directory::new(entries[i..end].to_vec());
             let serialized = new_dir_slice.serialize();
             let entry = Entry {
@@ -72,7 +77,11 @@ impl OptimizedDirectory {
             i += leaf_size;
         }
 
-        OptimizedDirectory { root_bytes: root_entries.serialize(), leaves_bytes, num_leaves }
+        OptimizedDirectory {
+            root_bytes: root_entries.serialize(),
+            leaves_bytes,
+            num_leaves,
+        }
     }
 }
 
@@ -171,7 +180,7 @@ pub struct PMTilesWriter {
     addressed_tiles: u64,
     clustered: bool,
     compression: Compression,
-    data_writer: Box<dyn DataWriter>
+    data_writer: Box<dyn DataWriter>,
 }
 impl PMTilesWriter {
     /// given a compression scheme and a data writer, create an instance to start storing tiles
@@ -187,7 +196,7 @@ impl PMTilesWriter {
             addressed_tiles: 0,
             clustered: false,
             compression,
-            data_writer
+            data_writer,
         };
         writer.data_writer.append_data(&root_data);
         writer
@@ -232,13 +241,23 @@ impl PMTilesWriter {
                     }
                 }
                 if add_new_entry {
-                    tile_entries.insert(Entry{ tile_id, offset: *offset, length: length as u32, run_length: 1 });
+                    tile_entries.insert(Entry {
+                        tile_id,
+                        offset: *offset,
+                        length: length as u32,
+                        run_length: 1,
+                    });
                 }
-            },
+            }
             None => {
                 let offset = self.offset;
                 self.data_writer.append_data(data);
-                tile_entries.insert(Entry { tile_id, offset, length: length as u32, run_length: 1 });
+                tile_entries.insert(Entry {
+                    tile_id,
+                    offset,
+                    length: length as u32,
+                    run_length: 1,
+                });
                 self.hash_to_offset.insert(hsh, offset);
                 self.offset += length as u64;
             }
@@ -264,9 +283,13 @@ impl PMTilesWriter {
         // optimize directories
         let od: OptimizedDirectory = OptimizedDirectory::optimize_directories(
             &mut self.tile_entries,
-            ROOT_SIZE - S2_HEADER_SIZE_BYTES - meta_buffer.len()
+            ROOT_SIZE - S2_HEADER_SIZE_BYTES - meta_buffer.len(),
         );
-        let OptimizedDirectory { root_bytes, leaves_bytes, .. } = od;
+        let OptimizedDirectory {
+            root_bytes,
+            leaves_bytes,
+            ..
+        } = od;
 
         // build header data
         let root_directory_offset = S2_HEADER_SIZE_BYTES as u64;
@@ -309,7 +332,8 @@ impl PMTilesWriter {
 
         // write header
         self.data_writer.write_data(&serialized_header, 0);
-        self.data_writer.write_data(&root_bytes, root_directory_offset);
+        self.data_writer
+            .write_data(&root_bytes, root_directory_offset);
         self.data_writer.write_data(&meta_buffer, metadata_offset);
     }
 
@@ -321,34 +345,58 @@ impl PMTilesWriter {
         // optimize directories
         let od = OptimizedDirectory::optimize_directories(
             self.s2tile_entries.get_mut(Face::Face0),
-            ROOT_SIZE - S2_HEADER_SIZE_BYTES - meta_buffer.len()
+            ROOT_SIZE - S2_HEADER_SIZE_BYTES - meta_buffer.len(),
         );
-        let OptimizedDirectory { root_bytes, leaves_bytes, .. } = od;
+        let OptimizedDirectory {
+            root_bytes,
+            leaves_bytes,
+            ..
+        } = od;
         let od1 = OptimizedDirectory::optimize_directories(
             self.s2tile_entries.get_mut(Face::Face1),
-            ROOT_SIZE - S2_HEADER_SIZE_BYTES - meta_buffer.len()
+            ROOT_SIZE - S2_HEADER_SIZE_BYTES - meta_buffer.len(),
         );
-        let OptimizedDirectory { root_bytes: root_bytes1, leaves_bytes: leaves_bytes1, .. } = od1;
+        let OptimizedDirectory {
+            root_bytes: root_bytes1,
+            leaves_bytes: leaves_bytes1,
+            ..
+        } = od1;
         let od2 = OptimizedDirectory::optimize_directories(
             self.s2tile_entries.get_mut(Face::Face2),
-            ROOT_SIZE - S2_HEADER_SIZE_BYTES - meta_buffer.len()
+            ROOT_SIZE - S2_HEADER_SIZE_BYTES - meta_buffer.len(),
         );
-        let OptimizedDirectory { root_bytes: root_bytes2, leaves_bytes: leaves_bytes2, .. } = od2;
+        let OptimizedDirectory {
+            root_bytes: root_bytes2,
+            leaves_bytes: leaves_bytes2,
+            ..
+        } = od2;
         let od3 = OptimizedDirectory::optimize_directories(
             self.s2tile_entries.get_mut(Face::Face3),
-            ROOT_SIZE - S2_HEADER_SIZE_BYTES - meta_buffer.len()
+            ROOT_SIZE - S2_HEADER_SIZE_BYTES - meta_buffer.len(),
         );
-        let OptimizedDirectory { root_bytes: root_bytes3, leaves_bytes: leaves_bytes3, .. } = od3;
+        let OptimizedDirectory {
+            root_bytes: root_bytes3,
+            leaves_bytes: leaves_bytes3,
+            ..
+        } = od3;
         let od4 = OptimizedDirectory::optimize_directories(
             self.s2tile_entries.get_mut(Face::Face4),
-            ROOT_SIZE - S2_HEADER_SIZE_BYTES - meta_buffer.len()
+            ROOT_SIZE - S2_HEADER_SIZE_BYTES - meta_buffer.len(),
         );
-        let OptimizedDirectory { root_bytes: root_bytes4, leaves_bytes: leaves_bytes4, .. } = od4;
+        let OptimizedDirectory {
+            root_bytes: root_bytes4,
+            leaves_bytes: leaves_bytes4,
+            ..
+        } = od4;
         let od5 = OptimizedDirectory::optimize_directories(
             self.s2tile_entries.get_mut(Face::Face5),
-            ROOT_SIZE - S2_HEADER_SIZE_BYTES - meta_buffer.len()
+            ROOT_SIZE - S2_HEADER_SIZE_BYTES - meta_buffer.len(),
         );
-        let OptimizedDirectory { root_bytes: root_bytes5, leaves_bytes: leaves_bytes5, .. } = od5;
+        let OptimizedDirectory {
+            root_bytes: root_bytes5,
+            leaves_bytes: leaves_bytes5,
+            ..
+        } = od5;
 
         // build header data
         // roots
@@ -440,12 +488,18 @@ impl PMTilesWriter {
 
         // write header
         self.data_writer.write_data(&serialized_header, 0);
-        self.data_writer.write_data(&root_bytes, root_directory_offset);
-        self.data_writer.write_data(&root_bytes1, root_directory_offset1);
-        self.data_writer.write_data(&root_bytes2, root_directory_offset2);
-        self.data_writer.write_data(&root_bytes3, root_directory_offset3);
-        self.data_writer.write_data(&root_bytes4, root_directory_offset4);
-        self.data_writer.write_data(&root_bytes5, root_directory_offset5);
+        self.data_writer
+            .write_data(&root_bytes, root_directory_offset);
+        self.data_writer
+            .write_data(&root_bytes1, root_directory_offset1);
+        self.data_writer
+            .write_data(&root_bytes2, root_directory_offset2);
+        self.data_writer
+            .write_data(&root_bytes3, root_directory_offset3);
+        self.data_writer
+            .write_data(&root_bytes4, root_directory_offset4);
+        self.data_writer
+            .write_data(&root_bytes5, root_directory_offset5);
         self.data_writer.write_data(&meta_buffer, metadata_offset);
     }
 }
@@ -459,9 +513,9 @@ fn hash_data(data: &[u8]) -> [u8; 32] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
-    use s2_tilejson::Metadata;
     use crate::reader::{FileManager, LocalManager, PMTilesReader};
+    use s2_tilejson::Metadata;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_file_writer_wm() {
@@ -479,29 +533,32 @@ mod tests {
         pmtiles_writer.commit(&Metadata::default());
 
         let mut reader = PMTilesReader::new(Box::new(FileManager::new(&file_path).unwrap()), None);
-        
+
         let header = reader.get_header();
-        assert_eq!(header, S2Header {
-            is_s2: false,
-            version: 3,
-            root_directory_offset: 262,
-            root_directory_length: 5,
-            metadata_offset: 267,
-            metadata_length: 417,
-            leaf_directory_offset: 98315,
-            leaf_directory_length: 0,
-            data_offset: 98304,
-            data_length: 11,
-            n_addressed_tiles: 1,
-            n_tile_entries: 1,
-            n_tile_contents: 1,
-            tile_type: TileType::Unknown,
-            ..Default::default()
-        });
+        assert_eq!(
+            header,
+            S2Header {
+                is_s2: false,
+                version: 3,
+                root_directory_offset: 262,
+                root_directory_length: 5,
+                metadata_offset: 267,
+                metadata_length: 417,
+                leaf_directory_offset: 98315,
+                leaf_directory_length: 0,
+                data_offset: 98304,
+                data_length: 11,
+                n_addressed_tiles: 1,
+                n_tile_entries: 1,
+                n_tile_contents: 1,
+                tile_type: TileType::Unknown,
+                ..Default::default()
+            }
+        );
 
         let metadata = reader.get_metadata();
         assert_eq!(*metadata, Metadata::default());
-        
+
         let tile = reader.get_tile_zxy(0, 0, 0).unwrap();
         assert_eq!(tile, tmp_str.as_bytes());
 
@@ -524,59 +581,62 @@ mod tests {
         let pmtiles_data = pmtiles_writer.take();
 
         let mut reader = PMTilesReader::new(Box::new(LocalManager::new(pmtiles_data)), None);
-        
+
         let header = reader.get_header();
-        assert_eq!(header, S2Header {
-            is_s2: true,
-            version: 1,
-            root_directory_offset: 262,
-            root_directory_length: 5,
-            metadata_offset: 276,
-            metadata_length: 417,
-            leaf_directory_offset: 98315,
-            leaf_directory_length: 0,
-            data_offset: 98304,
-            data_length: 11,
-            n_addressed_tiles: 2,
-            n_tile_entries: 0,
-            n_tile_contents: 1,
-            clustered: false,
-            min_zoom: 0,
-            max_zoom: 0,
-            min_longitude: 0.0,
-            min_latitude: 0.0,
-            max_longitude: 0.0,
-            max_latitude: 0.0,
-            center_zoom: 0,
-            center_longitude: 0.0,
-            center_latitude: 0.0,
-            root_directory_offset1: 267,
-            root_directory_length1: 1,
-            root_directory_offset2: 268,
-            root_directory_length2: 1,
-            root_directory_offset3: 269,
-            root_directory_length3: 5,
-            root_directory_offset4: 274,
-            root_directory_length4: 1,
-            root_directory_offset5: 275,
-            root_directory_length5: 1,
-            leaf_directory_offset1: 98315,
-            leaf_directory_length1: 0,
-            leaf_directory_offset2: 98315,
-            leaf_directory_length2: 0,
-            leaf_directory_offset3: 98315,
-            leaf_directory_length3: 0,
-            leaf_directory_offset4: 98315,
-            leaf_directory_length4: 0,
-            leaf_directory_offset5: 98315,
-            leaf_directory_length5: 0,
-            tile_type: TileType::Unknown,
-            ..Default::default()
-        });
+        assert_eq!(
+            header,
+            S2Header {
+                is_s2: true,
+                version: 1,
+                root_directory_offset: 262,
+                root_directory_length: 5,
+                metadata_offset: 276,
+                metadata_length: 417,
+                leaf_directory_offset: 98315,
+                leaf_directory_length: 0,
+                data_offset: 98304,
+                data_length: 11,
+                n_addressed_tiles: 2,
+                n_tile_entries: 0,
+                n_tile_contents: 1,
+                clustered: false,
+                min_zoom: 0,
+                max_zoom: 0,
+                min_longitude: 0.0,
+                min_latitude: 0.0,
+                max_longitude: 0.0,
+                max_latitude: 0.0,
+                center_zoom: 0,
+                center_longitude: 0.0,
+                center_latitude: 0.0,
+                root_directory_offset1: 267,
+                root_directory_length1: 1,
+                root_directory_offset2: 268,
+                root_directory_length2: 1,
+                root_directory_offset3: 269,
+                root_directory_length3: 5,
+                root_directory_offset4: 274,
+                root_directory_length4: 1,
+                root_directory_offset5: 275,
+                root_directory_length5: 1,
+                leaf_directory_offset1: 98315,
+                leaf_directory_length1: 0,
+                leaf_directory_offset2: 98315,
+                leaf_directory_length2: 0,
+                leaf_directory_offset3: 98315,
+                leaf_directory_length3: 0,
+                leaf_directory_offset4: 98315,
+                leaf_directory_length4: 0,
+                leaf_directory_offset5: 98315,
+                leaf_directory_length5: 0,
+                tile_type: TileType::Unknown,
+                ..Default::default()
+            }
+        );
 
         let metadata = reader.get_metadata();
         assert_eq!(*metadata, Metadata::default());
-        
+
         let tile = reader.get_tile_s2(Face::Face0, 0, 0, 0).unwrap();
         assert_eq!(tile, tmp_str.as_bytes());
 
@@ -604,7 +664,7 @@ mod tests {
         let pmtiles_data = pmtiles_writer.take();
 
         let mut reader = PMTilesReader::new(Box::new(LocalManager::new(pmtiles_data)), None);
-        
+
         let zoom = 5;
         let x = 12;
         let y = 30;

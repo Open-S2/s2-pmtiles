@@ -90,7 +90,11 @@ impl BitCast for i8 {
 }
 impl BitCast for bool {
     fn to_u64(&self) -> u64 {
-        if *self { 1 } else { 0 }
+        if *self {
+            1
+        } else {
+            0
+        }
     }
     fn from_u64(value: u64) -> Self {
         value != 0

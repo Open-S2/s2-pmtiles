@@ -1,8 +1,8 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-use alloc::vec::Vec;
 use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 
 /// A simple cache system with a maximum size.
 /// The key is the offset in the data and the value is the directory entries.
@@ -72,7 +72,7 @@ mod tests {
         let mut cache = DirCache::<u32, u32>::new(3);
 
         cache.set(1, 2);
-    
+
         assert_eq!(cache.get(&1), Some(&2));
         assert!(cache.delete(&1));
         assert!(!cache.delete(&1));
@@ -90,29 +90,38 @@ mod tests {
         cache.set(6, 7);
         cache.set(7, 8);
 
-        assert_eq!(cache, DirCache::<u32, u32>{
-            cache: BTreeMap::from([(3, 4), (4, 5), (5, 6), (6, 7), (7, 8)]),
-            order: vec![7, 6, 5, 4, 3],
-            max_size: 5
-        });
+        assert_eq!(
+            cache,
+            DirCache::<u32, u32> {
+                cache: BTreeMap::from([(3, 4), (4, 5), (5, 6), (6, 7), (7, 8)]),
+                order: vec![7, 6, 5, 4, 3],
+                max_size: 5
+            }
+        );
 
         cache.set(5, 9);
 
-        assert_eq!(cache, DirCache::<u32, u32>{
-            cache: BTreeMap::from([(3, 4), (4, 5), (5, 9), (6, 7), (7, 8)]),
-            order: vec![5, 7, 6, 4, 3],
-            max_size: 5
-        });
-        
+        assert_eq!(
+            cache,
+            DirCache::<u32, u32> {
+                cache: BTreeMap::from([(3, 4), (4, 5), (5, 9), (6, 7), (7, 8)]),
+                order: vec![5, 7, 6, 4, 3],
+                max_size: 5
+            }
+        );
+
         assert_eq!(cache.len(), 5);
         assert!(!cache.is_empty());
         assert_eq!(cache.get(&2), None);
         assert_eq!(cache.get(&3), Some(&4));
 
-        assert_eq!(cache, DirCache::<u32, u32>{
-            cache: BTreeMap::from([(3, 4), (4, 5), (5, 9), (6, 7), (7, 8)]),
-            order: vec![3, 5, 7, 6, 4],
-            max_size: 5
-        });
+        assert_eq!(
+            cache,
+            DirCache::<u32, u32> {
+                cache: BTreeMap::from([(3, 4), (4, 5), (5, 9), (6, 7), (7, 8)]),
+                order: vec![3, 5, 7, 6, 4],
+                max_size: 5
+            }
+        );
     }
 }

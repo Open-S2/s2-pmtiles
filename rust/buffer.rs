@@ -1,9 +1,9 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+use crate::bit_cast::BitCast;
 use alloc::vec::Vec;
 use core::cell::RefCell;
-use crate::bit_cast::BitCast;
 
 const MAX_VARINT_LENGTH: usize = u64::BITS as usize * 8 / 7 + 1;
 const BIT_SHIFT: [u64; 10] = [0, 7, 14, 21, 28, 35, 42, 49, 56, 63];
@@ -84,7 +84,9 @@ impl Buffer {
     /// set the current u8 at position
     pub fn set_u8_at(&mut self, pos: usize, value: u8) {
         let mut buf = self.buf.borrow_mut();
-        if pos >= buf.len() { buf.resize(pos + 1, 0); }
+        if pos >= buf.len() {
+            buf.resize(pos + 1, 0);
+        }
         buf[pos] = value;
     }
 
@@ -102,10 +104,9 @@ impl Buffer {
         // Borrow the buffer and slice the next 4 bytes
         let buf = self.buf.borrow();
         let bytes = &buf[pos..pos + 4];
-        
+
         i32::from_le_bytes(bytes.try_into().expect("slice with incorrect length"))
     }
-
 
     /// set the current i32 under the buffer
     pub fn set_i32(&mut self, value: i32) {
@@ -117,9 +118,11 @@ impl Buffer {
     pub fn set_i32_at(&mut self, pos: usize, value: i32) {
         // Borrow the buffer and slice the next 4 bytes
         let mut buf = self.buf.borrow_mut();
-        if pos >= buf.len() { buf.resize(pos + 4, 0); }
+        if pos >= buf.len() {
+            buf.resize(pos + 4, 0);
+        }
         let bytes = &mut buf[pos..pos + 4];
-        
+
         bytes.copy_from_slice(&value.to_le_bytes());
     }
 
@@ -128,7 +131,7 @@ impl Buffer {
         let value = self.get_u16_at(self.pos);
         // Update the position
         self.pos += 2;
-        
+
         value
     }
 
@@ -137,10 +140,9 @@ impl Buffer {
         // Borrow the buffer and slice the next 2 bytes
         let buf = self.buf.borrow();
         let bytes = &buf[pos..pos + 2];
-        
+
         u16::from_le_bytes(bytes.try_into().expect("slice with incorrect length"))
     }
-
 
     /// set the current u16 under the buffer
     pub fn set_u16(&mut self, value: u16) {
@@ -152,9 +154,11 @@ impl Buffer {
     pub fn set_u16_at(&mut self, pos: usize, value: u16) {
         // Borrow the buffer and slice the next 2 bytes
         let mut buf = self.buf.borrow_mut();
-        if pos >= buf.len() { buf.resize(pos + 2, 0); }
+        if pos >= buf.len() {
+            buf.resize(pos + 2, 0);
+        }
         let bytes = &mut buf[pos..pos + 2];
-        
+
         bytes.copy_from_slice(&value.to_le_bytes());
     }
 
@@ -163,7 +167,7 @@ impl Buffer {
         let value = self.get_u32_at(self.pos);
         // Update the position
         self.pos += 4;
-        
+
         value
     }
 
@@ -172,10 +176,9 @@ impl Buffer {
         // Borrow the buffer and slice the next 4 bytes
         let buf = self.buf.borrow();
         let bytes = &buf[pos..pos + 4];
-        
+
         u32::from_le_bytes(bytes.try_into().expect("slice with incorrect length"))
     }
-
 
     /// set the current u32 under the buffer
     pub fn set_u32(&mut self, value: u32) {
@@ -187,9 +190,11 @@ impl Buffer {
     pub fn set_u32_at(&mut self, pos: usize, value: u32) {
         // Borrow the buffer and slice the next 4 bytes
         let mut buf = self.buf.borrow_mut();
-        if pos >= buf.len() { buf.resize(pos + 4, 0); }
+        if pos >= buf.len() {
+            buf.resize(pos + 4, 0);
+        }
         let bytes = &mut buf[pos..pos + 4];
-        
+
         bytes.copy_from_slice(&value.to_le_bytes());
     }
 
@@ -198,7 +203,7 @@ impl Buffer {
         let value = self.get_i64_at(self.pos);
         // Update the position
         self.pos += 8;
-        
+
         value
     }
 
@@ -207,7 +212,7 @@ impl Buffer {
         // Borrow the buffer and slice the next 8 bytes
         let buf = self.buf.borrow();
         let bytes = &buf[pos..pos + 8];
-        
+
         i64::from_le_bytes(bytes.try_into().expect("slice with incorrect length"))
     }
 
@@ -221,27 +226,29 @@ impl Buffer {
     pub fn set_i64_at(&mut self, pos: usize, value: i64) {
         // Borrow the buffer and slice the next 8 bytes
         let mut buf = self.buf.borrow_mut();
-        if pos >= buf.len() { buf.resize(pos + 8, 0); }
+        if pos >= buf.len() {
+            buf.resize(pos + 8, 0);
+        }
         let bytes = &mut buf[pos..pos + 8];
-        
+
         bytes.copy_from_slice(&value.to_le_bytes());
     }
 
     /// return the current u64 under the buffer
-    pub fn get_u64(&mut self) ->u64 {
+    pub fn get_u64(&mut self) -> u64 {
         let value = self.get_u64_at(self.pos);
         // Update the position
         self.pos += 8;
-        
+
         value
     }
 
     /// return the current u64 at position
-    pub fn get_u64_at(&mut self, pos: usize) ->u64 {
+    pub fn get_u64_at(&mut self, pos: usize) -> u64 {
         // Borrow the buffer and slice the next 8 bytes
         let buf = self.buf.borrow();
         let bytes = &buf[pos..pos + 8];
-        
+
         u64::from_le_bytes(bytes.try_into().expect("slice with incorrect length"))
     }
 
@@ -255,16 +262,20 @@ impl Buffer {
     pub fn set_u64_at(&mut self, pos: usize, value: u64) {
         // Borrow the buffer and slice the next 8 bytes
         let mut buf = self.buf.borrow_mut();
-        if pos >= buf.len() { buf.resize(pos + 8, 0); }
+        if pos >= buf.len() {
+            buf.resize(pos + 8, 0);
+        }
         let bytes = &mut buf[pos..pos + 8];
-        
+
         bytes.copy_from_slice(&value.to_le_bytes());
     }
 
     /// Decode a varint from the buffer at the current position.
     pub fn decode_varint(&mut self) -> u64 {
         let buf = self.buf.borrow();
-        if self.pos >= buf.len() { unreachable!(); }
+        if self.pos >= buf.len() {
+            unreachable!();
+        }
         let mut val: u64 = 0;
 
         for (n, shift) in BIT_SHIFT.iter().enumerate().take(MAX_VARINT_LENGTH) {
@@ -298,11 +309,11 @@ impl Buffer {
     /// Write a u64 to the buffer.
     pub fn write_varint<T>(&mut self, val: T)
     where
-        T: BitCast
+        T: BitCast,
     {
         let mut buf = self.buf.borrow_mut();
         let mut val = val.to_u64();
-        
+
         while val >= 0x80 {
             buf.push(((val & 0x7f) | 0x80) as u8);
             val >>= 7;
@@ -327,7 +338,7 @@ mod tests {
         let buf = Buffer::new();
         let vec1: Vec<u8> = vec![];
         assert_eq!(vec1, buf.buf.borrow().to_vec());
-        
+
         // from
         let vec = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
         let buf2: Buffer = Buffer::from(vec.as_slice());
