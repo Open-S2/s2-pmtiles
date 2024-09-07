@@ -1,5 +1,4 @@
 import DirCache from './cache';
-import { decompressSync } from 'fflate';
 import { Compression, bytesToHeader, deserializeDir, findTile, zxyToTileID } from './pmtiles';
 import { S2_HEADER_SIZE_BYTES, S2_ROOT_SIZE, s2BytesToHeader } from './s2pmtiles';
 
@@ -217,7 +216,7 @@ export default class S2PMTilesReader {
 async function decompress(data: Uint8Array, compression: Compression): Promise<Uint8Array> {
   switch (compression) {
     case Compression.Gzip:
-      return decompressSync(data);
+      return decompressGzip(data);
     case Compression.Brotli:
       throw new Error('Brotli decompression not implemented');
     case Compression.Zstd:
@@ -226,4 +225,30 @@ async function decompress(data: Uint8Array, compression: Compression): Promise<U
     default:
       return data;
   }
+}
+
+/**
+ * @param uint8Array - the data to decompress
+ * @returns - the decompressed data
+ */
+async function decompressGzip(uint8Array: Uint8Array): Promise<Uint8Array> {
+  // Create a DecompressionStream for 'gzip'
+  const decompressionStream = new DecompressionStream('gzip');
+  // Convert the Uint8Array to a readable stream
+  const uint8ArrayStream = new ReadableStream({
+    /**  @param controller - the controller for the stream */
+    start(controller) {
+      controller.enqueue(uint8Array);
+      controller.close();
+    },
+  });
+  // Pipe the readable stream through the decompression stream
+  const decompressedStream = uint8ArrayStream.pipeThrough(decompressionStream);
+  // Create a new Response object from the decompressed stream to easily retrieve the data
+  const response = new Response(decompressedStream);
+  // Get the decompressed data as an ArrayBuffer
+  const decompressedAB = await response.arrayBuffer();
+
+  // Convert the ArrayBuffer to a Uint8Array and return
+  return new Uint8Array(decompressedAB, 0, decompressedAB.byteLength);
 }

@@ -5,4 +5,4 @@ export * from './reader';
 export * from './s2pmtiles';
 export * from './varint';
 export * from './writer';
-export { Metadata } from 's2-tilejson';
+export type * from 's2-tilejson';

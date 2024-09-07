@@ -1,6 +1,6 @@
 {
   "name": "s2-pmtiles",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "This library reads/writes PMTiles V3.0 as well as S2PMTiles V1.0",
   "keywords": [
     "PMTiles",
@@ -61,27 +61,24 @@
     "s2-pmtiles-spec"
   ],
   "homepage": "https://github.com/Open-S2/s2-pmtiles#readme",
-  "dependencies": {
-    "fflate": "^0.8.2"
-  },
   "devDependencies": {
     "@skypack/package-check": "^0.2.2",
-    "@types/bun": "^1.1.3",
-    "@types/node": "^20.12.11",
+    "@types/bun": "^1.1.8",
+    "@types/node": "^22.5.4",
     "@types/pbf": "^3.0.5",
     "@types/tmp": "^0.2.6",
     "coveralls": "^3.1.1",
-    "eslint": "^9.3.0",
+    "eslint": "^9.10.0",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-jsdoc": "^48.2.4",
-    "eslint-plugin-prettier": "^5.1.3",
-    "eslint-plugin-tsdoc": "^0.2.17",
-    "prettier": "^3.2.5",
-    "s2-tilejson": "^1.5.0",
+    "eslint-plugin-jsdoc": "^50.2.2",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-tsdoc": "^0.3.0",
+    "prettier": "^3.3.3",
+    "s2-tilejson": "^1.6.0",
     "tmp": "^0.2.3",
-    "typedoc": "^0.25.13",
-    "typedoc-plugin-coverage": "^3.1.1",
-    "typescript": "^5.4.5",
-    "typescript-eslint": "^7.8.0"
+    "typedoc": "^0.26.6",
+    "typedoc-plugin-coverage": "^3.3.0",
+    "typescript": "^5.5.4",
+    "typescript-eslint": "^8.4.0"
   }
 }
