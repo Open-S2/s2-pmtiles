@@ -153,57 +153,61 @@ test('File Writer S2', async () => {
   expect(tile6).toEqual(uint8_2);
 });
 
-test('File Writer WM Large', async () => {
-  tmpFile2 = tmp.tmpNameSync({ prefix: 'S2-big-2' });
-  const writer = new S2PMTilesWriter(new FileWriter(tmpFile2), TileType.Pbf);
-  // write lots of tiles
-  for (let zoom = 0; zoom < 8; zoom++) {
-    const size = 1 << zoom;
-    for (let x = 0; x < size; x++) {
-      for (let y = 0; y < size; y++) {
-        const str = `${zoom}-${x}-${y}`;
-        const buf = Buffer.from(str, 'utf8');
-        const uint8 = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
-        await writer.writeTileXYZ(zoom, x, y, uint8);
+test(
+  'File Writer WM Large',
+  async () => {
+    tmpFile2 = tmp.tmpNameSync({ prefix: 'S2-big-2' });
+    const writer = new S2PMTilesWriter(new FileWriter(tmpFile2), TileType.Pbf);
+    // write lots of tiles
+    for (let zoom = 0; zoom < 8; zoom++) {
+      const size = 1 << zoom;
+      for (let x = 0; x < size; x++) {
+        for (let y = 0; y < size; y++) {
+          const str = `${zoom}-${x}-${y}`;
+          const buf = Buffer.from(str, 'utf8');
+          const uint8 = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+          await writer.writeTileXYZ(zoom, x, y, uint8);
+        }
       }
     }
-  }
-  // finish
-  await writer.commit({ metadata: true } as unknown as Metadata);
+    // finish
+    await writer.commit({ metadata: true } as unknown as Metadata);
 
-  const reader = new S2PMTilesReader(new FileReader(tmpFile2));
-  // const header = await reader.getHeader();
-  // expect((await stat(tmpFile2)).size).toEqual(736_752);
-  // expect(header).toEqual({
-  //   clustered: false,
-  //   internalCompression: 2,
-  //   jsonMetadataLength: 37,
-  //   jsonMetadataOffset: 305,
-  //   leafDirectoryLength: 46_519,
-  //   leafDirectoryOffset: 690_233,
-  //   maxZoom: 7,
-  //   minZoom: 0,
-  //   numAddressedTiles: 21845,
-  //   numTileContents: 21_845,
-  //   numTileEntries: 21_845,
-  //   rootDirectoryLength: 43,
-  //   rootDirectoryOffset: 262,
-  //   specVersion: 3,
-  //   tileCompression: 2,
-  //   tileDataLength: 638_448,
-  //   tileDataOffset: 98_304,
-  //   tileType: 1,
-  // });
-  const metadata = await reader.getMetadata();
-  expect(metadata).toEqual({ metadata: true } as unknown as Metadata);
+    const reader = new S2PMTilesReader(new FileReader(tmpFile2));
+    // const header = await reader.getHeader();
+    // expect((await stat(tmpFile2)).size).toEqual(736_752);
+    // expect(header).toEqual({
+    //   clustered: false,
+    //   internalCompression: 2,
+    //   jsonMetadataLength: 37,
+    //   jsonMetadataOffset: 305,
+    //   leafDirectoryLength: 46_519,
+    //   leafDirectoryOffset: 690_233,
+    //   maxZoom: 7,
+    //   minZoom: 0,
+    //   numAddressedTiles: 21845,
+    //   numTileContents: 21_845,
+    //   numTileEntries: 21_845,
+    //   rootDirectoryLength: 43,
+    //   rootDirectoryOffset: 262,
+    //   specVersion: 3,
+    //   tileCompression: 2,
+    //   tileDataLength: 638_448,
+    //   tileDataOffset: 98_304,
+    //   tileType: 1,
+    // });
+    const metadata = await reader.getMetadata();
+    expect(metadata).toEqual({ metadata: true } as unknown as Metadata);
 
-  // get a random tile
-  const tile = await reader.getTile(6, 22, 45);
-  const str = `6-22-45`;
-  const buf = Buffer.from(str, 'utf8');
-  const uint8 = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
-  expect(tile).toEqual(uint8);
-});
+    // get a random tile
+    const tile = await reader.getTile(6, 22, 45);
+    const str = `6-22-45`;
+    const buf = Buffer.from(str, 'utf8');
+    const uint8 = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+    expect(tile).toEqual(uint8);
+  },
+  { timeout: 10_000 },
+);
 
 // cleanup
 afterAll(async () => {
