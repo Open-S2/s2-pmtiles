@@ -214,12 +214,8 @@ export function findTile(entries: Entry[], tileID: number): Entry | null {
 
   // at this point, m > n
   if (n >= 0) {
-    if (entries[n].runLength === 0) {
-      return entries[n];
-    }
-    if (tileID - entries[n].tileID < entries[n].runLength) {
-      return entries[n];
-    }
+    if (entries[n].runLength === 0) return entries[n];
+    if (tileID - entries[n].tileID < entries[n].runLength) return entries[n];
   }
   return null;
 }

@@ -13,8 +13,8 @@
   <a href="https://www.npmjs.com/package/s2-pmtiles">
     <img src="https://img.shields.io/npm/dm/s2-pmtiles.svg" alt="downloads">
   </a>
-  <a href="https://bundlejs.com/?q=s2-pmtiles%2Fbrowser&treeshake=%5B%7B+default+%7D%5D">
-    <img src="https://deno.bundlejs.com/badge?q=s2-pmtiles/browser&treeshake=[{+default+}]" alt="bundle">
+  <a href="https://bundlejs.com/?q=s2-pmtiles&treeshake=%5B%7B+S2PMTilesReader+%7D%5D">
+    <img src="https://deno.bundlejs.com/badge?q=s2-pmtiles&treeshake=[{+S2PMTilesReader+}]" alt="bundle">
   </a>
   <a href="https://open-s2.github.io/s2-pmtiles/">
     <img src="https://img.shields.io/badge/docs-typescript-yellow.svg" alt="docs-ts">
