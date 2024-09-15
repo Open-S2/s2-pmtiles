@@ -14,3 +14,4 @@ docs/
 benchmarks/
 tools/
 s2-pmtiles-spec/
+coverage

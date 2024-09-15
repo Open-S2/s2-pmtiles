@@ -60,10 +60,11 @@ cargo install s2-pmtiles
 ### Example use
 
 ```ts
-import { PMTilesReader, PMTilesWriter } from 's2-pmtiles'
+import { S2PMTilesReader, S2PMTilesWriter, TileType } from 's2-pmtiles'
+import { FileReader, FileWriter } from 's2-pmtiles/file';
 
 // The File Reader you can run on bun/node/deno
-const testFixture1 = new PMTilesReader(`test/fixtures/test_fixture_1.pmtiles`);
+const testFixture1 = new S2PMTilesReader(new FileReader('test/fixtures/test_fixture_1.pmtiles'));
 // get an WM tile
 let x = 0;
 let y = 0;
@@ -74,7 +75,7 @@ testFixture1.getTile(x, y, z); // undefied | Uint8Array
 testFixture1.getTileS2(face, x, y, z); // undefined | Uint8Array
 
 // The File Writer you can run on bun/node/deno
-const testFixture2 = new PMTilesWriter(`tmpFile.pmtiles`);
+const testFixture2 = new S2PMTilesWriter(new FileWriter('tmpFile.pmtiles'), TileType.Pbf);
 // write a tile
 testFixture2.writeTileXYZ(x, y, z, Uint8Array.from([]));
 // write an S2 tile
@@ -82,10 +83,11 @@ testFixture2.writeTileS2(face, x, y, z, Uint8Array.from([]));
 // when you finish you commit to build the metadata
 testFixture2.commit();
 
+
 // The File Reader you can run in the browser
-import { S2PMTilesReader } from 's2-pmtiles/browser';
+import { S2PMTilesReader } from 's2-pmtiles';
 // you want to add a true after the path for generic PMTiles, as it ensures 206 byte requests.
-const browserFixture = new S2PMTilesReader(`https://www.example.com/test.pmtiles`, true);
+const browserFixture = new S2PMTilesReader('https://www.example.com/test.pmtiles', true);
 // get an WM tile
 browserFixture.getTile(x, y, z); // undefied | Uint8Array
 // get an S2 tile
@@ -94,7 +96,7 @@ browserFixture.getTileS2(face, x, y, z); // undefined | Uint8Array
 
 ### Browser Support
 
-Some tsconfigs might need some extra help to see the `s2-pmtiles/browser` package.
+Some tsconfigs might need some extra help to see the `s2-pmtiles/file` or `s2-pmtiles/mmap` package.
 
 To fix this update your tsconfig.json with the following:
 
@@ -103,7 +105,8 @@ To fix this update your tsconfig.json with the following:
     "compilerOptions": {
         "baseUrl": "./",
         "paths": {
-            "s2-pmtiles/browser": ["./node_modules/s2-pmtiles/dist/browser.d.ts"]
+            "s2-pmtiles/file": ["./node_modules/s2-pmtiles/dist/file.d.ts"],
+            "s2-pmtiles/mmap": ["./node_modules/s2-pmtiles/dist/mmap.d.ts"]
         }
     }
 }

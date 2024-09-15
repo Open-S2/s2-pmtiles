@@ -1,21 +1,65 @@
 import DirCache from './cache';
-import { open } from 'node:fs/promises';
-import { promisify } from 'node:util';
+import { concatUint8Arrays } from '.';
 import { Compression, bytesToHeader, deserializeDir, findTile, zxyToTileID } from './pmtiles';
 import { S2_HEADER_SIZE_BYTES, S2_ROOT_SIZE, s2BytesToHeader } from './s2pmtiles';
-import { brotliDecompress, gunzip } from 'node:zlib';
 
 import type { Entry, Header } from './pmtiles';
 import type { Face, Metadata } from 's2-tilejson';
 import type { S2Entries, S2Header } from './s2pmtiles';
 
-// Promisify the zlib methods
-const gunzipAsync = promisify(gunzip);
-const brotliDecompressAsync = promisify(brotliDecompress);
+// export DirCache for browsers to use (reduce code duplication)
+export { default as DirCache } from './cache';
+
+/** The defacto interface for all readers. */
+export interface Reader {
+  getRange: (offset: number, length: number) => Promise<Uint8Array>;
+}
+
+/** The browser reader that fetches data from a URL. */
+export class FetchReader implements Reader {
+  /**
+   * @param path - the location of the PMTiles data
+   * @param rangeRequests - FetchReader specific; enable range requests or use urlParam "bytes"
+   */
+  constructor(
+    public path: string,
+    public rangeRequests: boolean,
+  ) {}
+
+  /**
+   * @param offset - the offset of the range
+   * @param length - the length of the range
+   * @returns - the ranged buffer
+   */
+  async getRange(offset: number, length: number): Promise<Uint8Array> {
+    const bytes = String(offset) + '-' + String(offset + length);
+    const fetchReq = this.rangeRequests
+      ? fetch(this.path, { headers: { Range: `bytes=${offset}-${offset + length - 1}` } })
+      : fetch(`${this.path}&bytes=${bytes}`);
+    const res = await fetchReq.then(async (res) => await res.arrayBuffer());
+    return new Uint8Array(res, 0, res.byteLength);
+  }
+}
+
+/** Buffer reader is used on files that are small and easy to read in memory. Faster then the Filesystem */
+export class BufferReader implements Reader {
+  /** @param buffer - the input data is the entire pmtiles file */
+  constructor(readonly buffer: Uint8Array) {}
+
+  /**
+   * @param offset - the offset of the range
+   * @param length - the length of the range
+   * @returns - the ranged buffer
+   */
+  async getRange(offset: number, length: number): Promise<Uint8Array> {
+    return this.buffer.slice(offset, offset + length);
+  }
+}
 
 /** The File reader is to be used by bun/node/deno on the local filesystem. */
-export class PMTilesReader {
+export class S2PMTilesReader {
   #header: Header | S2Header | undefined;
+  #reader: Reader;
   // root directory will exist if header does
   #rootDir: Entry[] = [];
   #rootDirS2: S2Entries = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [] };
@@ -26,12 +70,19 @@ export class PMTilesReader {
   /**
    * Given an input path, read in the header and root directory
    * @param path - the location of the PMTiles data
+   * @param rangeRequests - FetchReader specific; enable range requests or use urlParam "bytes"
    * @param maxSize - the max size of the cache before dumping old data. Defaults to 20.
    */
   constructor(
-    readonly path: string,
+    readonly path: string | Reader,
+    rangeRequests: boolean = false,
     maxSize = 20,
   ) {
+    if (typeof path === 'string') {
+      this.#reader = new FetchReader(path, rangeRequests);
+    } else {
+      this.#reader = path;
+    }
     this.#dirCache = new DirCache(maxSize);
   }
 
@@ -39,11 +90,10 @@ export class PMTilesReader {
    * @returns - the header of the archive along with the root directory,
    * including information such as tile type, min/max zoom, bounds, and summary statistics.
    */
-  async #getHeader(): Promise<Header | S2Header> {
+  async #getMetadata(): Promise<Header> {
     if (this.#header !== undefined) return this.#header;
-    const data = await this.#getRange(0, S2_ROOT_SIZE);
+    const data = await this.#reader.getRange(0, S2_ROOT_SIZE);
     const headerData = data.slice(0, S2_HEADER_SIZE_BYTES);
-
     // check if s2
     const isS2 = headerData[0] === 83 && headerData[1] === 50;
     // header
@@ -66,7 +116,7 @@ export class PMTilesReader {
     );
     this.#rootDir = deserializeDir(await decompress(rootDirData, header.internalCompression));
 
-    if (isS2) this.#getS2Metadata(data, header as S2Header);
+    if (isS2) await this.#getS2Metadata(data, header as S2Header);
 
     return header;
   }
@@ -79,13 +129,13 @@ export class PMTilesReader {
   async #getS2Metadata(data: Uint8Array, header: S2Header): Promise<void> {
     // move the root directory to the s2 root
     this.#rootDirS2[0] = this.#rootDir;
-    // add the 5 other faces
+    // add the 4 other faces
     for (const face of [1, 2, 3, 4, 5]) {
       const rootOffset = `rootDirectoryOffset${face}` as keyof S2Header;
-      const rootLength = `rootDirectoryLength${face}` as keyof S2Header;
+      const rootLenght = `rootDirectoryLength${face}` as keyof S2Header;
       const faceDirData = data.slice(
         header[rootOffset] as number,
-        (header[rootOffset] as number) + (header[rootLength] as number),
+        (header[rootOffset] as number) + (header[rootLenght] as number),
       );
       this.#rootDirS2[face as keyof S2Entries] = deserializeDir(
         await decompress(faceDirData, header.internalCompression),
@@ -94,13 +144,13 @@ export class PMTilesReader {
   }
 
   /** @returns - the header of the archive */
-  async getHeader(): Promise<Header | S2Header> {
-    return await this.#getHeader();
+  async getHeader(): Promise<Header> {
+    return await this.#getMetadata();
   }
 
   /** @returns - the metadata of the archive */
   async getMetadata(): Promise<Metadata> {
-    await this.#getHeader();
+    await this.#getMetadata(); // ensure loaded first
     return this.#metadata;
   }
 
@@ -122,7 +172,7 @@ export class PMTilesReader {
    * @returns - the bytes of the tile at the given (z, x, y) coordinates, or undefined if the tile does not exist in the archive.
    */
   async getTile(zoom: number, x: number, y: number): Promise<Uint8Array | undefined> {
-    return this.#getTile(-1, zoom, x, y);
+    return await this.#getTile(-1, zoom, x, y);
   }
 
   /**
@@ -138,13 +188,13 @@ export class PMTilesReader {
     x: number,
     y: number,
   ): Promise<Uint8Array | undefined> {
-    const header = await this.#getHeader();
+    const header = await this.#getMetadata();
     const tileID = zxyToTileID(zoom, x, y);
-    const { tileDataOffset } = header;
-    // DO NOT USE: I don't bother implementing this part of the spec
-    // if (zoom < minZoom || zoom > maxZoom) return undefined;
+    const { minZoom, maxZoom, rootDirectoryOffset, rootDirectoryLength, tileDataOffset } = header;
+    if (zoom < minZoom || zoom > maxZoom) return undefined;
 
-    let [dO, dL] = this.#getRootDir(face, header);
+    let dO = rootDirectoryOffset;
+    let dL = rootDirectoryLength;
 
     for (let depth = 0; depth <= 3; depth++) {
       const directory = await this.#getDirectory(dO, dL, face);
@@ -152,7 +202,10 @@ export class PMTilesReader {
       const entry = findTile(directory, tileID);
       if (entry !== null) {
         if (entry.runLength > 0) {
-          const entryData = await this.#getRange(tileDataOffset + entry.offset, entry.length);
+          const entryData = await this.#reader.getRange(
+            tileDataOffset + entry.offset,
+            entry.length,
+          );
           return await decompress(entryData, header.tileCompression);
         }
         dO = header.leafDirectoryOffset + entry.offset;
@@ -163,20 +216,6 @@ export class PMTilesReader {
   }
 
   /**
-   * @param face - the Open S2 projection face
-   * @param header - the header of the archive
-   * @returns - the offset and length of the root directory for the correct face
-   */
-  #getRootDir(face: number, header: Header | S2Header): [number, number] {
-    const { rootDirectoryOffset, rootDirectoryLength } = header;
-    if (face <= 0) return [rootDirectoryOffset, rootDirectoryLength];
-    const s2header = header as S2Header;
-    const rootOffset = `rootDirectoryOffset${face}` as keyof S2Header;
-    const rootLength = `rootDirectoryLength${face}` as keyof S2Header;
-    return [s2header[rootOffset] as number, s2header[rootLength] as number];
-  }
-
-  /**
    * @param offset - the offset of the directory
    * @param length - the length of the directory
    * @param face - -1 for WM root, 0-5 for S2
@@ -184,15 +223,15 @@ export class PMTilesReader {
    */
   async #getDirectory(offset: number, length: number, face: number): Promise<Entry[] | undefined> {
     const dir = face === -1 ? this.#rootDir : this.#rootDirS2[face as Face];
-    const header = await this.#getHeader();
+    const header = await this.#getMetadata();
     const { internalCompression, rootDirectoryOffset } = header;
     // if rootDirectoryOffset, return roon
     if (offset === rootDirectoryOffset) return dir;
     // check cache
     const cache = this.#dirCache.get(offset);
-    if (cache) return cache;
+    if (cache !== undefined) return cache;
     // get from archive
-    const resp = await this.#getRange(offset, length);
+    const resp = await this.#reader.getRange(offset, length);
     const data = await decompress(resp, internalCompression);
     const directory = deserializeDir(data);
     if (directory.length === 0) throw new Error('Empty directory is invalid');
@@ -200,21 +239,6 @@ export class PMTilesReader {
     this.#dirCache.set(offset, directory);
 
     return directory;
-  }
-
-  /**
-   * @param offset - the offset of the data
-   * @param length - the length of the data
-   * @returns - the bytes of the data
-   */
-  async #getRange(offset: number, length: number): Promise<Uint8Array> {
-    const fileHandle = await open(this.path, 'r');
-    // Create a buffer to hold the bytes
-    const buffer = Buffer.alloc(length);
-    // Read the specified number of bytes from the given offset
-    const { bytesRead } = await fileHandle.read(buffer, 0, length, offset);
-
-    return new Uint8Array(buffer.buffer, buffer.byteOffset, bytesRead);
   }
 
   /**
@@ -234,13 +258,29 @@ export class PMTilesReader {
 async function decompress(data: Uint8Array, compression: Compression): Promise<Uint8Array> {
   switch (compression) {
     case Compression.Gzip:
-      return new Uint8Array(await gunzipAsync(data));
+      return decompressGzip(data);
     case Compression.Brotli:
-      return new Uint8Array(await brotliDecompressAsync(data));
+      throw new Error('Brotli decompression not implemented');
     case Compression.Zstd:
       throw new Error('Zstd decompression not implemented');
     case Compression.None:
     default:
       return data;
   }
+}
+
+/**
+ * @param compressedBytes - the data to decompress
+ * @returns - the decompressed data
+ */
+async function decompressGzip(compressedBytes: Uint8Array): Promise<Uint8Array> {
+  // Convert the bytes to a stream.
+  const stream = new Blob([compressedBytes]).stream();
+  // Create a decompressed stream.
+  const decompressedStream = stream.pipeThrough(new DecompressionStream('gzip'));
+  // Read all the bytes from this stream.
+  const chunks = [];
+  for await (const chunk of decompressedStream) chunks.push(chunk);
+
+  return await concatUint8Arrays(chunks);
 }

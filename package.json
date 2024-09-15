@@ -1,6 +1,6 @@
 {
   "name": "s2-pmtiles",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "This library reads/writes PMTiles V3.0 as well as S2PMTiles V1.0",
   "keywords": [
     "PMTiles",
@@ -20,14 +20,20 @@
     ".": {
       "require": "./dist/index.js",
       "import": "./dist/index.js",
-      "browser": "./dist/browser.js",
+      "file": "./dist/file.js",
+      "mmap": "./dist/mmap.js",
       "types": "./dist/index.d.ts"
     },
     "./dist/*": "./dist/*",
-    "./browser": {
-      "require": "./dist/browser.js",
-      "import": "./dist/browser.js",
-      "types": "./dist/browser.d.ts"
+    "./file": {
+      "require": "./dist/file.js",
+      "import": "./dist/file.js",
+      "types": "./dist/file.d.ts"
+    },
+    "./mmap": {
+      "require": "./dist/mmap.js",
+      "import": "./dist/mmap.js",
+      "types": "./dist/mmap.d.ts"
     }
   },
   "scripts": {
