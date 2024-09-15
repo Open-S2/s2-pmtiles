@@ -1,10 +1,9 @@
-import { FileWriter } from '../src/file';
-import { MMapReader } from '../src/mmap';
 import { TileType } from '../src/pmtiles';
 import tmp from 'tmp';
 import { unlink } from 'node:fs/promises';
 import { BufferReader, S2PMTilesReader } from '../src/reader';
 import { BufferWriter, S2PMTilesWriter } from '../src/writer';
+import { FileReader, FileWriter } from '../src/file';
 import { afterAll, expect, test } from 'bun:test';
 
 import { stat } from 'node:fs/promises';
@@ -88,7 +87,7 @@ test('File Writer S2', async () => {
   // finish
   await writer.commit({ metadata: true } as unknown as Metadata);
 
-  const reader = new S2PMTilesReader(new MMapReader(tmpFile1));
+  const reader = new S2PMTilesReader(new FileReader(tmpFile1));
   const metadata = await reader.getMetadata();
   const header = await reader.getHeader();
 
@@ -172,7 +171,7 @@ test('File Writer WM Large', async () => {
   // finish
   await writer.commit({ metadata: true } as unknown as Metadata);
 
-  const reader = new S2PMTilesReader(new MMapReader(tmpFile2));
+  const reader = new S2PMTilesReader(new FileReader(tmpFile2));
   // const header = await reader.getHeader();
   // expect((await stat(tmpFile2)).size).toEqual(736_752);
   // expect(header).toEqual({
