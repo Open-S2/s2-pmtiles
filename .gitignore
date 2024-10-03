@@ -10,3 +10,4 @@ tools/fetchBingTiles.ts
 tools/fetchOMT.ts
 s2-pmtiles-spec/1.0.0/README.bak.md
 coverage
+docs/
