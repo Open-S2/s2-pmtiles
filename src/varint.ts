@@ -94,7 +94,8 @@ export function writeVarint(val: number, bufPos: BufferPosition): void {
  * @param bufPos - the buffer with it's position to write at
  */
 export function writeBigVarint(val: number, bufPos: BufferPosition): void {
-  let low = val % 0x100000000 | 0;
+  let low = val % 0x100000000;
+  low |= 0;
   let high = (val / 0x100000000) | 0;
 
   if (val < 0) {
