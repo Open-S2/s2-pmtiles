@@ -35,6 +35,10 @@
 
 A Modified TypeScript implementation of the [PMTiles](https://github.com/protomaps/PMTiles) library. It is backwards compatible but offers support for the S2 Projection.
 
+> [!NOTE]
+> The S2 PMTiles V1 spec and PMTiles V3 spec implementations are best used via
+> The [GIS Tools](https://github.com/Open-S2/gis-tools) library. The code here is for demonstration purposes only.
+
 ## Read The Spec
 
 [s2-pmtiles-spec](/s2-pmtiles-spec/1.0.0/README.md)
