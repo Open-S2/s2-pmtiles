@@ -1,5 +1,3 @@
-use core::mem::transmute;
-
 /// All encoding and decoding is done via u64.
 /// So all types must implement this trait to be able to be encoded and decoded.
 pub trait BitCast: Sized {
@@ -18,10 +16,10 @@ impl BitCast for u64 {
 }
 impl BitCast for i64 {
     fn to_u64(&self) -> u64 {
-        unsafe { transmute::<i64, u64>(*self) }
+        i64::cast_unsigned(*self)
     }
     fn from_u64(value: u64) -> Self {
-        unsafe { transmute::<u64, i64>(value) }
+        u64::cast_signed(value)
     }
 }
 impl BitCast for f64 {
@@ -42,10 +40,10 @@ impl BitCast for u32 {
 }
 impl BitCast for i32 {
     fn to_u64(&self) -> u64 {
-        unsafe { transmute::<i32, u32>(*self) as u64 }
+        i32::cast_unsigned(*self) as u64
     }
     fn from_u64(value: u64) -> Self {
-        unsafe { transmute::<u32, i32>(value as u32) }
+        u32::cast_signed(value as u32)
     }
 }
 impl BitCast for f32 {
@@ -66,10 +64,10 @@ impl BitCast for u16 {
 }
 impl BitCast for i16 {
     fn to_u64(&self) -> u64 {
-        unsafe { transmute::<i16, u16>(*self) as u64 }
+        i16::cast_unsigned(*self) as u64
     }
     fn from_u64(value: u64) -> Self {
-        unsafe { transmute::<u16, i16>(value as u16) }
+        u16::cast_signed(value as u16)
     }
 }
 impl BitCast for u8 {
@@ -82,10 +80,10 @@ impl BitCast for u8 {
 }
 impl BitCast for i8 {
     fn to_u64(&self) -> u64 {
-        unsafe { transmute::<i8, u8>(*self) as u64 }
+        i8::cast_unsigned(*self) as u64
     }
     fn from_u64(value: u64) -> Self {
-        unsafe { transmute::<u8, i8>(value as u8) }
+        u8::cast_signed(value as u8)
     }
 }
 impl BitCast for bool {

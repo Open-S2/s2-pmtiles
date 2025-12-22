@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![forbid(unsafe_code)]
 #![deny(missing_docs)]
 //! The `s2-pmtiles` Rust crate provides functionalities to read and write S2-PMTiles Spec messages.
 //! This crate supports `no_std` and is intended to be used in embedded systems and WASM

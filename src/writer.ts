@@ -141,7 +141,11 @@ export class S2PMTilesWriter {
     tileEntries.sort((a, b) => a.tileID - b.tileID);
     // build metadata
     const metaBuffer = Buffer.from(JSON.stringify(metadata));
-    let metauint8 = new Uint8Array(metaBuffer.buffer, metaBuffer.byteOffset, metaBuffer.byteLength);
+    let metauint8: Uint8Array = new Uint8Array(
+      metaBuffer.buffer,
+      metaBuffer.byteOffset,
+      metaBuffer.byteLength,
+    );
     metauint8 = await compress(metauint8, this.compression);
 
     // optimize directories
@@ -211,7 +215,11 @@ export class S2PMTilesWriter {
     tileEntries5.sort((a, b) => a.tileID - b.tileID);
     // build metadata
     const metaBuffer = Buffer.from(JSON.stringify(metadata));
-    let metauint8 = new Uint8Array(metaBuffer.buffer, metaBuffer.byteOffset, metaBuffer.byteLength);
+    let metauint8: Uint8Array = new Uint8Array(
+      metaBuffer.buffer,
+      metaBuffer.byteOffset,
+      metaBuffer.byteLength,
+    );
     metauint8 = await compress(metauint8, this.compression);
 
     // optimize directories
@@ -364,7 +372,7 @@ async function buildRootsLeaves(
   compression: Compression,
 ): Promise<OptimizedDirectory> {
   const rootEntries: Entry[] = [];
-  let leavesBytes = new Uint8Array(0);
+  let leavesBytes: Uint8Array = new Uint8Array(0);
   let numLeaves = 0;
 
   let i = 0;
